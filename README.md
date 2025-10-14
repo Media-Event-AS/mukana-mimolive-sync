@@ -1,141 +1,178 @@
-# Mukana to mimoLive Sync Chrome Extension
+# 🚀 Mukana to mimoLive Sync - Chrome Plugin Installation Guide
 
-A Chrome extension that injects the Mukana scraper directly into Mukana panelist pages, allowing you to scrape content while piggybacking on the existing authentication.
+## 📋 What This Plugin Does
 
-## 🚀 **Installation**
+This Chrome extension automatically extracts panelist comments from Mukana pages and 
+forwards them to mimoLive Layers via user defined HTTP API endpoints. 
+IMPORTANT: The plugin need to be run in a browser on the same machine as MimoLive.
 
-### **Method 1: Load Unpacked Extension (Development)**
+It features:
 
-1. **Download/Clone** this extension folder
-2. **Open Chrome** and go to `chrome://extensions/`
-3. **Enable "Developer mode"** (toggle in top right)
-4. **Click "Load unpacked"**
-5. **Select** the `mukana-scraper-extension` folder
-6. **Extension should appear** in your extensions list
+- **Real-time synchronization** of Mukana panelist view comments
+- **Automatic data extraction** from Mukana
+- **Seamless mimoLive integration** via HTTP API
+- **DOM monitoring** for live updates
+- **User-friendly control panel** for configuration
 
-### **Method 2: Create Icons (Optional)**
+## 🔧 Installation Steps
 
-If you want custom icons, create these files:
-- `icon16.png` (16x16 pixels)
-- `icon48.png` (48x48 pixels)  
-- `icon128.png` (128x128 pixels)
+### Step 1: Download the Plugin Files
 
-Or use any existing PNG files and rename them.
+1. **Download** the plugin folder made by Media Event AS
+2. **Extract** the ZIP file to a location on your computer
+3. **Keep the folder** - you'll need it for the installation
 
-## 🔧 **How It Works**
+### Step 2: Open Chrome Extensions Page
 
-1. **Navigate** to a Mukana page (panelist or teleprompter)
-2. **Click the extension icon** in your Chrome toolbar
-3. **Click "Create Control Panel"** to create the scraper interface on the page
-4. **Use the control panel** that appears on the page to configure and control the scraper
-5. **The scraper extracts** username (msg_user) and comment text (msg_text) from the page
+1. **Open Google Chrome** on your computer
+2. **Type** `chrome://extensions/` in the address bar
+3. **Press Enter**
 
-## 📋 **Features**
+### Step 3: Enable Developer Mode
 
-- **🔐 Authentication**: Piggybacks on existing Firebase Google authentication
-- **🎯 Page Injection**: Runs directly in the Mukana page context
-- **⚙️ Control Panel**: Built-in configuration and control interface
-- **💾 Configuration Storage**: Saves settings in Chrome storage
-- **📊 Real-time Status**: Monitor scraper status and performance
-- **🔄 Auto-detection**: Automatically detects when page is ready
+1. **Look for the toggle** in the top-right corner
+2. **Click "Developer mode"** to enable it
+3. **You should see** additional options appear below
 
-## 🎮 **Usage**
+### Step 4: Load the Plugin
 
-### **Step 1: Navigate to Mukana Page**
-- Go to any Mukana page (panelist or teleprompter)
-- Ensure you're logged in with Google
+1. **Click "Load unpacked"** button (top left corner)
+2. **Navigate to** the plugin folder you extracted
+3. **Select the folder** (not individual files)
+4. **Click "Select Folder"**
 
-### **Step 2: Create the Control Panel**
-- Click the extension icon in Chrome toolbar
-- Click "Create Control Panel" button
-- Wait for confirmation message
+### Step 5: Verify Installation
 
-### **Step 3: Configure the Scraper**
-- Look for the control panel on the right side of the page
-- Enter your destination URL
-- Configure options (interval, max comments, etc.)
-- Click "Start Scraper"
+1. **Look for "Mukana to mimoLive Sync"** in your extensions list
+2. **Check that it shows** the correct version number
+3. **Ensure the extension is enabled** (toggle should be blue)
+4. **Look for the extension icon** in your Chrome toolbar (top-right)
 
-### **Step 4: Monitor and Control**
-- Use the status button to check scraper status
-- Use stop button to stop scraping
-- Close panel when not needed
+## 🎯 How to Use the Plugin
 
-## ⚙️ **Configuration Options**
+### Step 1: Navigate to Mukana
 
-- **Destination URL**: Where to send the scraped data
-- **Check Interval**: How often to check for updates (milliseconds)
-- **Max Comments**: Maximum number of comments to process
-- **Include User Info**: Extract username, location, phonetics
-- **Include Notes**: Extract host notes
-- **Include Votes**: Extract vote counts
+1. **Go to** Mukana panelist view page
+2. **Make sure you're logged in** with your panelist role account
+3. **Wait for the page to fully load**
 
-## 🔍 **Troubleshooting**
+### Step 2: Create the Control Panel
 
-### **Extension Not Working**
-1. Check if extension is enabled in `chrome://extensions/`
-2. Ensure you're on a Mukana panelist page
-3. Check browser console for error messages
-4. Try refreshing the page and re-injecting
+1. **Click the plugin icon** in your Chrome toolbar
+2. **Click "Create Control Panel"** button (if not already started)
+3. **Wait for the confirmation message**
+4. **Look for the control panel** on the right side of the page
 
-### **Authentication Issues**
-1. Make sure you're logged into Mukana with Google
-2. Check if Firebase is properly loaded on the page
-3. Look for authentication errors in console
+### Step 3: Configure the Plugin
 
-### **Scraper Not Starting**
-1. Check the destination URL is valid
-2. Ensure the page has loaded completely
-3. Check browser console for error messages
-4. Try increasing the check interval
+1. **Enter LayerIDs for destination URL** (where to send the data)
+   - Right click at each layer/source "Copy Layer's API endpoint...."
+   - Put these ID's into their respective fields in the
+     Control Panel fields and click 'Save Config'.
+2. **Set Document ID and Port** ()
+3. **Configure other options** as needed: 
+   This might vary due to the mimolive document or functionality 
+   that is needed in your specific case. Plugin works with multiple 
+   setups, and might need to be tailored specifically to your needs.
+   - Max comments to process
+   - Include user information
+   - Include notes and votes
 
-## 📁 **File Structure**
+### Step 4: Start the Sync
+
+1. **Click "Start Scraper"** in the control panel
+2. **Monitor the status** to ensure it's working
+3. **Check the logs** for any error messages
+
+## ⚙️ Configuration Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| **Destination URL** | Where to send scraped data | Required |
+| **Max Comments** | Maximum comments to process | 100 |
+| **Include User Info** | Extract username, location, phonetics | ✓ |
+| **Include Notes** | Extract host notes | ✓ |
+| **Include Votes** | Extract vote counts | ✓ |
+
+## 🔍 Troubleshooting
+
+### Plugin Not Appearing
+- **Check Developer mode** is enabled
+- **Verify the folder** contains all plugin files
+- **Try refreshing** the extensions page
+- **Restart Chrome** and try again
+
+### Plugin Not Working on Mukana Pages
+WARNING: BREAKING CHANGES If any changes are made to the Mukana Panel View interface/page, 
+the plugin could stop working as it is depending on the page DOM structure. 
+- **Ensure you're on** a Mukana panelist/teleprompter page
+- **Check the URL** contains "mukana-panelView", "mukana-panelist", or "mukana-teleprompter"
+- **Verify you're logged in** with the required account role, Panelist (I prefer using google)
+- **Check browser console** for any type of error messages
+
+### Control Panel Not Appearing
+- **Click the plugin icon** and try "Create Control Panel" again
+- **Refresh the page** and try again
+- **Check if the page** has fully loaded
+- **Look for error messages** in the plugin popup
+
+### Scraper Not Starting
+- **Verify the destination URL** is correct and accessible
+- **Check the check interval** isn't too low (hardcoded)
+- **Ensure the page** has the expected content
+- **Always check for console errors** in browser DevTools
+
+## 📁 Required Files
+
+Make sure your plugin folder contains these files:
 
 ```
-mukana-scraper-extension/
-├── manifest.json          # Extension manifest
-├── content-script.js      # Script injected into pages
-├── popup.html            # Extension popup interface
-├── popup.js              # Popup functionality
-├── background.js         # Background service worker
-├── mukana-scraper.js     # Main scraper library
-└── README.md             # This file
+✅ manifest.json          # Plugin configuration
+✅ content-script.js      # Page injection script
+✅ popup.html            # Plugin popup interface
+✅ popup.js              # Popup functionality
+✅ background.js         # Background service worker
+✅ mukana-scraper.js     # Main scraper library
+✅ icon16.png            # Small icon
+✅ icon48.png            # Medium icon
+✅ icon128.png           # Large icon
 ```
 
-## 🔒 **Security & Privacy**
+## 🔒 Security Notes
 
-- **Local Storage**: Configuration is stored locally in Chrome
-- **Page Context**: Scraper runs in the page context, not extension context
-- **No External Calls**: Extension doesn't make external network calls
-- **User Control**: User controls what data is scraped and where it's sent
+- **Local Storage**: All configuration is stored locally in Chrome
+- **Page Context**: The scraper runs within the Mukana page context
+- **No External Calls**: The plugin itself doesn't make external network calls
+- **User Control**: You control what data is scraped and where it's sent
 
-## 🚀 **Development**
+## 📞 Getting Help
 
-### **Making Changes**
-1. Edit the source files
-2. Go to `chrome://extensions/`
-3. Click the refresh icon on the extension
-4. Reload the Mukana page
+If you encounter issues:
 
-### **Debugging**
-1. Open Chrome DevTools on the Mukana page
-2. Look for console messages from the scraper
-3. Check the extension's background page for errors
-4. Use the extension popup for status information
+1. **Check the browser console** for error messages
+2. **Verify the plugin is properly installed** in chrome://extensions/
+3. **Ensure you're on the correct Mukana page**
+4. **Check that Google authentication is working**
+5. **Contact your colleague** who provided the plugin
 
-## 📞 **Support**
+## 🔄 Updating the Plugin
 
-For issues or questions:
-1. Check the browser console for error messages
-2. Verify the extension is properly installed
-3. Ensure you're on the correct Mukana page
-4. Check that Firebase authentication is working
+To update to a newer version:
 
-## 🔄 **Updates**
+1. **Download the new version** from your Norwegian friends
+2. **Replace the old folder** with the new one
+3. **Go to** chrome://extensions/
+4. **Click the refresh icon** on the plugin
+5. **Reload any open Mukana pages**
 
-To update the extension:
-1. Download the latest version
-2. Replace the old files
-3. Go to `chrome://extensions/`
-4. Click refresh on the extension
-5. Reload any open Mukana pages
+## 🚀 **Development / Author**
+
+**Plugin Version:** n/a  
+**Author:** Ronny Hofsøy, Media Event AS  
+**Contact:** post@mediaevent.no / www.mediaevent.no  
+**Minimum Chrome Version:** 88  
+**Last Updated:** Sept 2024
+
+
+
+🎉 **You're all set!** The plugin should now be working and ready to sync your Mukana data to mimoLive.
