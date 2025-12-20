@@ -142,12 +142,12 @@ class MukanaScraperInjector {
                 this.config = {
                     documentId: '1185605207',
                     port: '8989',
-                    titleLayer: 'FE24ACB7-524C-4659-B04D-824FB91F1E05',
+                    titleLayer: '9F2DCEA4-B78A-439A-809A-83337E12AEE8',
                     questionTagLayer: 'FE24ACB7-524C-4659-B04D-824FB91F1E05',
-                    textLayer: '11F0706A-4E1E-4DBA-A620-2D3EF44A9F2D',
-                    locationLayer: '73F19730-1C97-4660-8091-37428DDEC4A6',
+                    textLayer: 'DBDBF888-5493-42C8-A5B1-E0107ED363B5',
+                    locationLayer: '0D3D4A82-F3B0-42AE-9C90-CD88ECC9222D',
                     panelistQueueLayer: '6EEAD85B-1057-4490-934F-EB524BA1EDC5',
-                    sourceId: '572187142-1CDC27E3-762F-4054-86F7-3403FA9518E0',
+                    sourceId: '1185605207-1CDC27E3-762F-4054-86F7-3403FA9518E0',
                     qrContentPath: 'data.attributes.input-values.tvGroup_Content__QR_Content'
                 };
                 console.log('🔄 Using default config (stored config incomplete)');
@@ -170,14 +170,14 @@ class MukanaScraperInjector {
             console.error('❌ Failed to load config:', error);
             // Set default config if loading fails
             this.config = {
-                documentId: '572187142',
-                port: '49262',
-                titleLayer: 'D692CF88-5C77-47F3-A513-5129BDB76FC7',
-                questionTagLayer: 'D692CF88-5C77-47F3-A513-5129BDB76FC8',
-                textLayer: '11F0706A-4E1E-4DBA-A620-2D3EF44A9F2D',
-                locationLayer: '73F19730-1C97-4660-8091-37428DDEC4A6',
+                documentId: '1185605207',
+                port: '8989',
+                titleLayer: '9F2DCEA4-B78A-439A-809A-83337E12AEE8',
+                questionTagLayer: 'FE24ACB7-524C-4659-B04D-824FB91F1E05',
+                textLayer: 'DBDBF888-5493-42C8-A5B1-E0107ED363B5',
+                locationLayer: '0D3D4A82-F3B0-42AE-9C90-CD88ECC9222D',
                 panelistQueueLayer: '6EEAD85B-1057-4490-934F-EB524BA1EDC5',
-                sourceId: '572187142-1CDC27E3-762F-4054-86F7-3403FA9518E0'
+                sourceId: '1185605207-1CDC27E3-762F-4054-86F7-3403FA9518E0'
             };
         }
     }
@@ -306,17 +306,6 @@ class MukanaScraperInjector {
                     <button id="mukana-scraper-close" style="float: right; background: none; border: none; color: var(--header-text); cursor: pointer; font-size: 16px;">×</button>
                 </div>
                 <div style="padding: 15px;">
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
-                            <strong>📍 Fetching Current Question:</strong><br>
-                            • Username (.msg_user .uName)<br>
-                            • Location (.msg_user .uLoc)<br>
-                            • Question Text (.msg_text)<br>
-                            • URL Extraction (.msg_text)<br>
-                            <em>Only processes the TOP question with "hostAnswer" class</em>
-                        </div>
-                    </div>
-                    
                     <!-- Configuration Section -->
                     <div style="margin-bottom: 15px; background: var(--config-bg); border-radius: 4px; border-left: 4px solid var(--config-border); overflow: hidden;">
                         <div style="padding: 10px; cursor: pointer; user-select: none;" id="config-header">
@@ -334,73 +323,54 @@ class MukanaScraperInjector {
                         
                         <div id="config-content" style="padding: 0 10px 10px 10px; display: none;">
                         
-                        <!-- Basic Configuration -->
-                        <div style="margin-bottom: 8px;">
-                            <label style="font-size: 11px; color: var(--config-text); display: block; margin-bottom: 2px;">Document ID:</label>
-                            <input type="text" id="mukana-document-id" value="${this.config?.documentId || '572187142'}" style="width: 100%; padding: 4px; border: 1px solid var(--input-border); border-radius: 3px; font-size: 11px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
-                        </div>
-                        <div style="margin-bottom: 8px;">
-                            <label style="font-size: 11px; color: var(--config-text); display: block; margin-bottom: 2px;">Port:</label>
-                            <input type="text" id="mukana-port" value="${this.config?.port || '49262'}" style="width: 100%; padding: 4px; border: 1px solid var(--input-border); border-radius: 3px; font-size: 11px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
-                        </div>
-                        
-                        <!-- Username Endpoint Configuration -->
-                        <div style="margin-top: 12px; padding: 8px; background: var(--subsection-bg); border-radius: 3px; border-left: 3px solid var(--panel-border);">
-                            <div style="font-size: 10px; color: var(--config-text); margin-bottom: 6px; font-weight: bold;">👤 Name Endpoint:</div>
-                            <div style="margin-bottom: 6px;">
-                                <label style="font-size: 10px; color: var(--config-text); display: block; margin-bottom: 1px;">Layer ID:</label>
-                                <input type="text" id="mukana-title-layer" value="${this.config?.titleLayer || 'D692CF88-5C77-47F3-A513-5129BDB76FC7'}" style="width: 100%; padding: 3px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
+                        <!-- Single container with two-column layout -->
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <!-- Document ID -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 10px; color: var(--config-text); flex: 0 0 120px;">Document ID:</label>
+                                <input type="text" id="mukana-document-id" value="${this.config?.documentId || '1185605207'}" style="flex: 1; padding: 3px 4px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
                             </div>
-                        </div>
-                        
-                        <!-- Question Tag Endpoint Configuration -->
-                        <div style="margin-top: 8px; padding: 8px; background: var(--subsection-bg); border-radius: 3px; border-left: 3px solid var(--button-warning-bg);">
-                            <div style="font-size: 10px; color: var(--config-text); margin-bottom: 6px; font-weight: bold;">🏷️ Question Tag Endpoint:</div>
-                            <div style="margin-bottom: 6px;">
-                                <label style="font-size: 10px; color: var(--config-text); display: block; margin-bottom: 1px;">Layer ID:</label>
-                                <input type="text" id="mukana-question-tag-layer" value="${this.config?.questionTagLayer || 'D692CF88-5C77-47F3-A513-5129BDB76FC8'}" style="width: 100%; padding: 3px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
+                            
+                            <!-- Port -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 10px; color: var(--config-text); flex: 0 0 120px;">Port:</label>
+                                <input type="text" id="mukana-port" value="${this.config?.port || '8989'}" style="flex: 1; padding: 3px 4px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
                             </div>
-                        </div>
-                        
-                        <!-- Panelist Endpoint Configuration -->
-                        <div style="margin-top: 8px; padding: 8px; background: var(--subsection-bg); border-radius: 3px; border-left: 3px solid var(--button-info-bg);">
-                            <div style="font-size: 10px; color: var(--config-text); margin-bottom: 6px; font-weight: bold;">👥 Panelist Queue Endpoint:</div>
-                            <div style="font-size: 9px; color: var(--config-text); margin-bottom: 6px; line-height: 1.2; font-style: italic;">
-                                Extracts panelist names queued to answer questions
+                            
+                            <!-- Name Endpoint -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 10px; color: var(--config-text); flex: 0 0 120px;">👤 Name Endpoint:</label>
+                                <input type="text" id="mukana-title-layer" value="${this.config?.titleLayer || '9F2DCEA4-B78A-439A-809A-83337E12AEE8'}" style="flex: 1; padding: 3px 4px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
                             </div>
-                            <div style="margin-bottom: 6px;">
-                                <label style="font-size: 10px; color: var(--config-text); display: block; margin-bottom: 1px;">Layer ID:</label>
-                                <input type="text" id="mukana-panelist-queue-layer" value="${this.config?.panelistQueueLayer || '6EEAD85B-1057-4490-934F-EB524BA1EDC5'}" style="width: 100%; padding: 3px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
+                            
+                            <!-- Question Tag Endpoint -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 10px; color: var(--config-text); flex: 0 0 120px;">🏷️ Question Tag Endpoint:</label>
+                                <input type="text" id="mukana-question-tag-layer" value="${this.config?.questionTagLayer || 'FE24ACB7-524C-4659-B04D-824FB91F1E05'}" style="flex: 1; padding: 3px 4px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
                             </div>
-                        </div>
-                        
-                        <!-- Location Endpoint Configuration -->
-                        <div style="margin-top: 8px; padding: 8px; background: var(--subsection-bg); border-radius: 3px; border-left: 4px solid var(--button-info-bg);">
-                            <div style="font-size: 10px; color: var(--config-text); margin-bottom: 6px; font-weight: bold;">📍 Location Endpoint:</div>
-                            <div style="margin-bottom: 6px;">
-                                <label style="font-size: 10px; color: var(--config-text); display: block; margin-bottom: 1px;">Layer ID:</label>
-                                <input type="text" id="mukana-location-layer" value="${this.config?.locationLayer || '73F19730-1C97-4660-8091-37428DDEC4A6'}" style="width: 100%; padding: 3px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
+                            
+                            <!-- Panelist Queue Endpoint -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 10px; color: var(--config-text); flex: 0 0 120px;">👥 Panelist Queue Endpoint:</label>
+                                <input type="text" id="mukana-panelist-queue-layer" value="${this.config?.panelistQueueLayer || '6EEAD85B-1057-4490-934F-EB524BA1EDC5'}" style="flex: 1; padding: 3px 4px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
                             </div>
-                        </div>
-                        
-                        <!-- Text Endpoint Configuration -->
-                        <div style="margin-top: 8px; padding: 8px; background: var(--subsection-bg); border-radius: 3px; border-left: 3px solid var(--button-primary-bg);">
-                            <div style="font-size: 10px; color: var(--config-text); margin-bottom: 6px; font-weight: bold;">📝 Text Endpoint:</div>
-                            <div style="margin-bottom: 6px;">
-                                <label style="font-size: 10px; color: var(--config-text); display: block; margin-bottom: 1px;">Layer ID:</label>
-                                <input type="text" id="mukana-text-layer" value="${this.config?.textLayer || '11F0706A-4E1E-4DBA-A620-2D3EF44A9F2D'}" style="width: 100%; padding: 3px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
+                            
+                            <!-- Location Endpoint -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 10px; color: var(--config-text); flex: 0 0 120px;">📍 Location Endpoint:</label>
+                                <input type="text" id="mukana-location-layer" value="${this.config?.locationLayer || '0D3D4A82-F3B0-42AE-9C90-CD88ECC9222D'}" style="flex: 1; padding: 3px 4px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
                             </div>
-                        </div>
-                        
-                        <!-- QR Endpoint Configuration -->
-                        <div style="margin-top: 8px; padding: 8px; background: var(--subsection-bg); border-radius: 3px; border-left: 4px solid var(--button-danger-bg);">
-                            <div style="font-size: 10px; color: var(--config-text); margin-bottom: 6px; font-weight: bold;">🔗 QR Endpoint (URL Extraction):</div>
-                            <div style="font-size: 9px; color: var(--config-text); margin-bottom: 6px; line-height: 1.2; font-style: italic;">
-                                Extracts first deep link from question text and sends to QR endpoint
+                            
+                            <!-- Text Endpoint -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 10px; color: var(--config-text); flex: 0 0 120px;">📝 Text Endpoint:</label>
+                                <input type="text" id="mukana-text-layer" value="${this.config?.textLayer || 'DBDBF888-5493-42C8-A5B1-E0107ED363B5'}" style="flex: 1; padding: 3px 4px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
                             </div>
-                            <div style="margin-bottom: 6px;">
-                                <label style="font-size: 10px; color: var(--config-text); display: block; margin-bottom: 1px;">Source ID:</label>
-                                <input type="text" id="mukana-source-id" value="${this.config?.sourceId || '572187142-1CDC27E3-762F-4054-86F7-3403FA9518E0'}" style="width: 100%; padding: 3px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
+                            
+                            <!-- QR Endpoint -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 10px; color: var(--config-text); flex: 0 0 120px;">🔗 QR Endpoint:</label>
+                                <input type="text" id="mukana-source-id" value="${this.config?.sourceId || '1185605207-1CDC27E3-762F-4054-86F7-3403FA9518E0'}" style="flex: 1; padding: 3px 4px; border: 1px solid var(--input-border); border-radius: 2px; font-size: 10px; font-family: monospace; background: var(--input-bg); color: var(--input-text);">
                             </div>
                         </div>
                         
@@ -422,35 +392,26 @@ class MukanaScraperInjector {
                         <!-- Configuration Status -->
                         <div id="mukana-config-status" style="margin-top: 8px; padding: 6px; background: var(--status-success-bg); border-radius: 3px; border-left: 4px solid var(--button-primary-bg); font-size: 10px; color: var(--status-success-text);">
                             <strong>Current Config:</strong><br>
-                            Document ID: <span id="config-doc-id">${this.config?.documentId || '572187142'}</span><br>
-                            Port: <span id="config-port">${this.config?.port || '49262'}</span><br>
-                            Username Layer: <span id="config-title-layer">${this.config?.titleLayer || 'D692CF88-5C77-47F3-A513-5129BDB76FC7'}</span><br>
-                            Question Tag Layer: <span id="config-question-tag-layer">${this.config?.questionTagLayer || 'D692CF88-5C77-47F3-A513-5129BDB76FC8'}</span><br>
+                            Document ID: <span id="config-doc-id">${this.config?.documentId || '1185605207'}</span><br>
+                            Port: <span id="config-port">${this.config?.port || '8989'}</span><br>
+                            Username Layer: <span id="config-title-layer">${this.config?.titleLayer || '9F2DCEA4-B78A-439A-809A-83337E12AEE8'}</span><br>
+                            Question Tag Layer: <span id="config-question-tag-layer">${this.config?.questionTagLayer || 'FE24ACB7-524C-4659-B04D-824FB91F1E05'}</span><br>
                             Panelist Queue Layer: <span id="config-panelist-queue-layer">${this.config?.panelistQueueLayer || '6EEAD85B-1057-4490-934F-EB524BA1EDC5'}</span><br>
-                            Text Layer: <span id="config-text-layer">${this.config?.textLayer || '11F0706A-4E1E-4DBA-A620-2D3EF44A9F2D'}</span><br>
-                            Location Layer: <span id="config-location-layer">${this.config?.locationLayer || '73F19730-1C97-4660-8091-37428DDEC4A6'}</span><br>
-                            Source ID: <span id="config-source-id">${this.config?.sourceId || '572187142-1CDC27E3-762F-4054-86F7-3403FA9518E0'}</span>
+                            Text Layer: <span id="config-text-layer">${this.config?.textLayer || 'DBDBF888-5493-42C8-A5B1-E0107ED363B5'}</span><br>
+                            Location Layer: <span id="config-location-layer">${this.config?.locationLayer || '0D3D4A82-F3B0-42AE-9C90-CD88ECC9222D'}</span><br>
+                            Source ID: <span id="config-source-id">${this.config?.sourceId || '1185605207-1CDC27E3-762F-4054-86F7-3403FA9518E0'}</span>
                         </div>
                         
                         <!-- API Endpoints Info -->
                         <div style="margin-top: 8px; padding: 6px; background: var(--status-info-bg); border-radius: 3px; border-left: 4px solid var(--button-info-bg); font-size: 9px; color: var(--status-info-text); line-height: 1.2;">
                             <strong>API Endpoints will be:</strong><br>
-                            • Username: <code>127.0.0.1:${this.config?.port || '49262'}/api/v1/documents/${this.config?.documentId || '572187142'}/layers/${this.config?.titleLayer || 'D692CF88-5C77-47F3-A513-5129BDB76FC7'}</code><br>
-                            • Question Tag: <code>127.0.0.1:${this.config?.port || '49262'}/api/v1/documents/${this.config?.documentId || '572187142'}/layers/${this.config?.questionTagLayer || 'D692CF88-5C77-47F3-A513-5129BDB76FC8'}</code><br>
-                            • Panelist Queue: <code>127.0.0.1:${this.config?.port || '49262'}/api/v1/documents/${this.config?.documentId || '572187142'}/layers/${this.config?.panelistQueueLayer || '6EEAD85B-1057-4490-934F-EB524BA1EDC5'}</code><br>
-                            • Text: <code>127.0.0.1:${this.config?.port || '49262'}/api/v1/documents/${this.config?.documentId || '572187142'}/layers/${this.config?.textLayer || '11F0706A-4E1E-4DBA-A620-2D3EF44A9F2D'}</code><br>
-                            • Location: <code>127.0.0.1:${this.config?.port || '49262'}/api/v1/documents/${this.config?.documentId || '572187142'}/layers/${this.config?.locationLayer || '73F19730-1C97-4660-8091-37428DDEC4A6'}</code><br>
-                            • QR: <code>127.0.0.1:${this.config?.port || '49262'}/api/v1/documents/${this.config?.documentId || '572187142'}/sources/${this.config?.sourceId || '572187142-1CDC27E3-762F-4054-86F7-3403FA9518E0'}</code>
+                            • Username: <code>127.0.0.1:${this.config?.port || '8989'}/api/v1/documents/${this.config?.documentId || '1185605207'}/layers/${this.config?.titleLayer || '9F2DCEA4-B78A-439A-809A-83337E12AEE8'}</code><br>
+                            • Question Tag: <code>127.0.0.1:${this.config?.port || '8989'}/api/v1/documents/${this.config?.documentId || '1185605207'}/layers/${this.config?.questionTagLayer || 'FE24ACB7-524C-4659-B04D-824FB91F1E05'}</code><br>
+                            • Panelist Queue: <code>127.0.0.1:${this.config?.port || '8989'}/api/v1/documents/${this.config?.documentId || '1185605207'}/layers/${this.config?.panelistQueueLayer || '6EEAD85B-1057-4490-934F-EB524BA1EDC5'}</code><br>
+                            • Text: <code>127.0.0.1:${this.config?.port || '8989'}/api/v1/documents/${this.config?.documentId || '1185605207'}/layers/${this.config?.textLayer || 'DBDBF888-5493-42C8-A5B1-E0107ED363B5'}</code><br>
+                            • Location: <code>127.0.0.1:${this.config?.port || '8989'}/api/v1/documents/${this.config?.documentId || '1185605207'}/layers/${this.config?.locationLayer || '0D3D4A82-F3B0-42AE-9C90-CD88ECC9222D'}</code><br>
+                            • QR: <code>127.0.0.1:${this.config?.port || '8989'}/api/v1/documents/${this.config?.documentId || '1185605207'}/sources/${this.config?.sourceId || '1185605207-1CDC27E3-762F-4054-86F7-3403FA9518E0'}</code>
                         </div>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-size: 12px; color: var(--panel-text); padding: 10px; background: var(--subsection-bg); border-radius: 4px;">
-                            <strong>🔍 DOM Monitoring:</strong><br>
-                            • Watches for new questions, updates, and removals<br>
-                            • Automatically detects changes in real-time<br>
-                            • No polling or intervals needed
                         </div>
                     </div>
                     
@@ -464,32 +425,22 @@ class MukanaScraperInjector {
                          <button id="mukana-scraper-status" style="background: var(--button-info-bg); color: var(--button-info-text); padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">
                              Show Status
                          </button>
-                         <button id="mukana-scraper-force-update" style="background: var(--button-warning-bg, #ffc107); color: var(--button-primary-text, #000); padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-top: 8px; width: 100%;">
-                             🔄 Force Update (Test)
+                         <button id="mukana-scraper-force-update" style="background: var(--button-warning-bg, #ffc107); color: var(--button-primary-text, #000); padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; margin-top: 8px; margin-right: 5px; font-size: 11px;">
+                             📊 Force Update
                          </button>
-                         <button id="mukana-scraper-clear-data" style="background: var(--button-danger-bg, #dc3545); color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-top: 8px; width: 100%;">
-                             🗑️ Clear Stored Data
+                         <button id="mukana-scraper-clear-data" style="background: var(--button-danger-bg, #dc3545); color: white; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; margin-top: 8px; margin-right: 5px; font-size: 11px;">
+                             🗑️ Clear Data
                          </button>
-                         <button id="mukana-scraper-mimolive-state" style="background: var(--button-info-bg, #17a2b8); color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-top: 8px; width: 100%;">
-                             🎯 Show MimoLive State
+                         <button id="mukana-scraper-mimolive-state" style="background: var(--button-info-bg, #17a2b8); color: white; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; margin-top: 8px; margin-right: 5px; font-size: 11px;">
+                             💻 Show State
                          </button>
-                         <button id="mukana-scraper-compare" style="background: var(--button-warning-bg, #ffc107); color: black; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-top: 8px; width: 100%;">
-                             🔍 Compare Current vs MimoLive
+                         <button id="mukana-scraper-compare" style="background: var(--button-warning-bg, #ffc107); color: black; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; margin-top: 8px; margin-right: 5px; font-size: 11px;">
+                             💻 Compare
                          </button>
-                         <button id="mukana-scraper-force-reset" style="background: var(--button-danger-bg, #dc3545); color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; margin-top: 8px; width: 100%;">
-                             🔄 Force Reset & Refresh
+                         <button id="mukana-scraper-force-reset" style="background: var(--button-danger-bg, #dc3545); color: white; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; margin-top: 8px; font-size: 11px;">
+                             🔃 Reset
                          </button>
                      </div>
-                    
-                    <div style="margin-bottom: 15px; padding: 10px; background: var(--subsection-bg); border-radius: 4px; border-left: 4px solid var(--panel-border);">
-                        <div style="font-size: 12px; color: var(--panel-text);">
-                            <strong>👁️ Real-Time DOM Watching:</strong><br>
-                            • Automatically detects DOM changes instantly<br>
-                            • Click "Start DOM Watcher" to begin watching<br>
-                            • Click "Stop DOM Watcher" to halt the watcher<br>
-                            • Updates mimoLive immediately when changes occur
-                        </div>
-                    </div>
                     
                     <!-- Real-time activity indicator -->
                     <div id="mukana-activity-indicator" style="margin-bottom: 15px; padding: 10px; background: var(--status-success-bg); border-radius: 4px; border-left: 4px solid var(--button-primary-bg); display: none;">
@@ -930,6 +881,42 @@ class MukanaScraperInjector {
         // Don't trigger updates for general DOM changes that don't affect the active question
     }
     
+    // Helper method to make API calls via background script (avoids CORS issues)
+    async fetchViaBackground(url, options = {}) {
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'FETCH_API',
+                url: url,
+                method: options.method || 'GET',
+                headers: options.headers || {},
+                body: options.body
+            });
+            
+            if (!response.success) {
+                const error = new Error(response.error || 'Fetch failed');
+                error.status = response.status || 0;
+                throw error;
+            }
+            
+            // Create a response-like object for compatibility
+            const responseText = response.text;
+            return {
+                ok: response.ok,
+                status: response.status,
+                statusText: response.statusText,
+                text: async () => responseText,
+                headers: {
+                    get: (name) => response.headers?.[name] || null,
+                    entries: () => Object.entries(response.headers || {}),
+                    has: (name) => response.headers && name in response.headers
+                }
+            };
+        } catch (error) {
+            console.error('❌ Error in fetchViaBackground:', error);
+            throw error;
+        }
+    }
+    
     // Extract data and update mimoLive
     async extractAndUpdateData() {
         console.log('🚀🚀🚀 extractAndUpdateData CALLED! 🚀🚀🚀');
@@ -1001,6 +988,33 @@ class MukanaScraperInjector {
                     // Extract panelist queue data
                     const panelistQueueData = this.extractPanelistQueueData(currentQuestion);
                     
+                    // Extract vote count from .msg_info .vote_count element
+                    const voteCountElement = currentQuestion.querySelector('.msg_info .vote_count');
+                    const voteCount = voteCountElement ? voteCountElement.textContent.trim() : '0';
+                    console.log(`🗳️ Found vote count: "${voteCount}"`);
+                    
+                    // Extract msg_sourceMarker SVG from .msg_info .msg_sourceMarker element
+                    const sourceMarkerElement = currentQuestion.querySelector('.msg_info .msg_sourceMarker');
+                    const hasSourceMarker = !!sourceMarkerElement;
+                    let sourceMarkerSVG = '';
+                    if (sourceMarkerElement) {
+                        sourceMarkerSVG = sourceMarkerElement.innerHTML.trim();
+                        console.log(`🎯 Found source marker SVG:`, sourceMarkerSVG.substring(0, 100) + '...');
+                    }
+                    
+                    // Extract panelist state from .msg_inner .panelist_nameWrap classes
+                    const panelistNameWrap = currentQuestion.querySelector('.msg_inner .panelist_nameWrap');
+                    let panelistState = 'unknown';
+                    if (panelistNameWrap) {
+                        const classList = panelistNameWrap.className;
+                        if (classList.includes('active hostControl')) {
+                            panelistState = 'active';
+                        } else if (classList.includes('queued hostControl')) {
+                            panelistState = 'queued';
+                        }
+                        console.log(`👤 Panelist state: "${panelistState}" (classes: "${classList}")`);
+                    }
+                    
                     const data = {
                         id: currentQuestion.id || `question-current`,
                         username: username,
@@ -1010,6 +1024,10 @@ class MukanaScraperInjector {
                         originalComment: questionText,
                         extractedUrl: url,
                         panelistQueue: panelistQueueData,
+                        voteCount: voteCount,
+                        hasSourceMarker: hasSourceMarker,
+                        sourceMarkerSVG: sourceMarkerSVG,
+                        panelistState: panelistState,
                         timestamp: Date.now(),
                         order: 1
                     };
@@ -1030,12 +1048,18 @@ class MukanaScraperInjector {
                 username: commentData[0].username, 
                 location: commentData[0].location,
                 extractedUrl: commentData[0].extractedUrl,
+                voteCount: commentData[0].voteCount,
+                hasSourceMarker: commentData[0].hasSourceMarker,
+                panelistState: commentData[0].panelistState,
                 timestamp: commentData[0].timestamp
             } : 'No data');
             console.log('📊 Last data:', this.lastCommentData && this.lastCommentData.length > 0 ? { 
                 username: this.lastCommentData[0].username, 
                 location: this.lastCommentData[0].location,
                 extractedUrl: this.lastCommentData[0].extractedUrl,
+                voteCount: this.lastCommentData[0].voteCount,
+                hasSourceMarker: this.lastCommentData[0].hasSourceMarker,
+                panelistState: this.lastCommentData[0].panelistState,
                 timestamp: this.lastCommentData[0].timestamp
             } : 'None');
             
@@ -1062,6 +1086,10 @@ class MukanaScraperInjector {
                         originalComment: commentData[0].originalComment,
                         extractedUrl: commentData[0].extractedUrl,
                         panelistQueue: commentData[0].panelistQueue,
+                        voteCount: commentData[0].voteCount,
+                        hasSourceMarker: commentData[0].hasSourceMarker,
+                        sourceMarkerSVG: commentData[0].sourceMarkerSVG,
+                        panelistState: commentData[0].panelistState,
                         timestamp: commentData[0].timestamp,
                         order: commentData[0].order
                     };
@@ -1153,7 +1181,7 @@ class MukanaScraperInjector {
                 console.log('🌐 Attempting to connect to title endpoint:', titleEndpoint);
                 
                 try {
-                    const response = await fetch(titleEndpoint, {
+                    const response = await this.fetchViaBackground(titleEndpoint, {
                         method: 'GET',
                         headers: {
                             'User-Agent': 'MukanaScraper/1.0'
@@ -1208,7 +1236,7 @@ class MukanaScraperInjector {
                     console.log('🌐 Attempting to connect to question tag endpoint:', tagEndpoint);
                     
                     try {
-                        const tagResponse = await fetch(tagEndpoint, {
+                        const tagResponse = await this.fetchViaBackground(tagEndpoint, {
                             method: 'GET',
                             headers: {
                                 'User-Agent': 'MukanaScraper/1.0'
@@ -1266,7 +1294,7 @@ class MukanaScraperInjector {
                     console.log('🌐 Attempting to connect to panelist queue endpoint:', panelistEndpoint);
                     
                     try {
-                        const panelistResponse = await fetch(panelistEndpoint, {
+                        const panelistResponse = await this.fetchViaBackground(panelistEndpoint, {
                             method: 'GET',
                             headers: {
                                 'User-Agent': 'MukanaScraper/1.0'
@@ -1321,7 +1349,7 @@ class MukanaScraperInjector {
                 console.log('🌐 Attempting to connect to text endpoint:', textEndpoint);
                 
                 try {
-                    const textResponse = await fetch(textEndpoint, {
+                    const textResponse = await this.fetchViaBackground(textEndpoint, {
                         method: 'GET',
                         headers: {
                             'User-Agent': 'MukanaScraper/1.0'
@@ -1372,7 +1400,7 @@ class MukanaScraperInjector {
                 console.log('🌐 Attempting to connect to user info endpoint:', userInfoEndpoint);
                 
                 try {
-                    const userInfoResponse = await fetch(userInfoEndpoint, {
+                    const userInfoResponse = await this.fetchViaBackground(userInfoEndpoint, {
                         method: 'GET',
                         headers: {
                             'User-Agent': 'MukanaScraper/1.0'
@@ -1432,7 +1460,7 @@ class MukanaScraperInjector {
                     source: window.location.href
                 };
                 
-                const response = await fetch(destinationUrl, {
+                const response = await this.fetchViaBackground(destinationUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1604,6 +1632,9 @@ class MukanaScraperInjector {
         const locationChanged = String(lastQuestion.location) !== String(newQuestion.location);
         const tagChanged = String(lastQuestion.questionTag || '') !== String(newQuestion.questionTag || '');
         const urlChanged = String(lastQuestion.extractedUrl || '') !== String(newQuestion.extractedUrl || '');
+        const voteCountChanged = String(lastQuestion.voteCount || '0') !== String(newQuestion.voteCount || '0');
+        const sourceMarkerChanged = Boolean(lastQuestion.hasSourceMarker) !== Boolean(newQuestion.hasSourceMarker);
+        const panelistStateChanged = String(lastQuestion.panelistState || 'unknown') !== String(newQuestion.panelistState || 'unknown');
         
         // Check if panelist queue has changed
         const panelistQueueChanged = this.hasPanelistQueueChanged(lastQuestion.panelistQueue, newQuestion.panelistQueue);
@@ -1613,10 +1644,13 @@ class MukanaScraperInjector {
             location: { old: lastQuestion.location, new: newQuestion.location, changed: locationChanged },
             tag: { old: lastQuestion.questionTag, new: newQuestion.questionTag, changed: tagChanged },
             url: { old: lastQuestion.extractedUrl, new: newQuestion.extractedUrl, changed: urlChanged },
+            voteCount: { old: lastQuestion.voteCount, new: newQuestion.voteCount, changed: voteCountChanged },
+            sourceMarker: { old: lastQuestion.hasSourceMarker, new: newQuestion.hasSourceMarker, changed: sourceMarkerChanged },
+            panelistState: { old: lastQuestion.panelistState, new: newQuestion.panelistState, changed: panelistStateChanged },
             panelistQueue: { old: lastQuestion.panelistQueue, new: newQuestion.panelistQueue, changed: panelistQueueChanged }
         });
         
-        if (usernameChanged || locationChanged || tagChanged || urlChanged || panelistQueueChanged) {
+        if (usernameChanged || locationChanged || tagChanged || urlChanged || voteCountChanged || sourceMarkerChanged || panelistStateChanged || panelistQueueChanged) {
             console.log('📊 Data change detected in current question');
             return true;
         }
@@ -1664,19 +1698,19 @@ class MukanaScraperInjector {
         const configSourceIdSpan = document.getElementById('config-source-id');
         
         if (documentIdInput && this.config) {
-            documentIdInput.value = this.config.documentId || '572187142';
+            documentIdInput.value = this.config.documentId || '1185605207';
         }
         
         if (portInput && this.config) {
-            portInput.value = this.config.port || '49262';
+            portInput.value = this.config.port || '8989';
         }
         
         if (titleLayerInput && this.config) {
-            titleLayerInput.value = this.config.titleLayer || 'D692CF88-5C77-47F3-A513-5129BDB76FC7';
+            titleLayerInput.value = this.config.titleLayer || '9F2DCEA4-B78A-439A-809A-83337E12AEE8';
         }
         
         if (questionTagLayerInput && this.config) {
-            questionTagLayerInput.value = this.config.questionTagLayer || 'D692CF88-5C77-47F3-A513-5129BDB76FC8';
+            questionTagLayerInput.value = this.config.questionTagLayer || 'FE24ACB7-524C-4659-B04D-824FB91F1E05';
         }
         
         if (panelistQueueLayerInput && this.config) {
@@ -1684,31 +1718,31 @@ class MukanaScraperInjector {
         }
         
         if (textLayerInput && this.config) {
-            textLayerInput.value = this.config.textLayer || '11F0706A-4E1E-4DBA-A620-2D3EF44A9F2D';
+            textLayerInput.value = this.config.textLayer || 'DBDBF888-5493-42C8-A5B1-E0107ED363B5';
         }
         
         if (locationLayerInput && this.config) {
-            locationLayerInput.value = this.config.locationLayer || '73F19730-1C97-4660-8091-37428DDEC4A6';
+            locationLayerInput.value = this.config.locationLayer || '0D3D4A82-F3B0-42AE-9C90-CD88ECC9222D';
         }
         
         if (sourceIdInput && this.config) {
-            sourceIdInput.value = this.config.sourceId || '572187142-1CDC27E3-762F-4054-86F7-3403FA9518E0';
+            sourceIdInput.value = this.config.sourceId || '1185605207-1CDC27E3-762F-4054-86F7-3403FA9518E0';
         }
         
         if (configDocIdSpan && this.config) {
-            configDocIdSpan.textContent = this.config.documentId || '572187142';
+            configDocIdSpan.textContent = this.config.documentId || '1185605207';
         }
         
         if (configPortSpan && this.config) {
-            configPortSpan.textContent = this.config.port || '49262';
+            configPortSpan.textContent = this.config.port || '8989';
         }
         
         if (configTitleLayerSpan && this.config) {
-            configTitleLayerSpan.textContent = this.config.titleLayer || 'D692CF88-5C77-47F3-A513-5129BDB76FC7';
+            configTitleLayerSpan.textContent = this.config.titleLayer || '9F2DCEA4-B78A-439A-809A-83337E12AEE8';
         }
         
         if (configQuestionTagLayerSpan && this.config) {
-            configQuestionTagLayerSpan.textContent = this.config.questionTagLayer || 'D692CF88-5C77-47F3-A513-5129BDB76FC8';
+            configQuestionTagLayerSpan.textContent = this.config.questionTagLayer || 'FE24ACB7-524C-4659-B04D-824FB91F1E05';
         }
         
         if (configPanelistQueueLayerSpan && this.config) {
@@ -1716,15 +1750,15 @@ class MukanaScraperInjector {
         }
         
         if (configTextLayerSpan && this.config) {
-            configTextLayerSpan.textContent = this.config.textLayer || '11F0706A-4E1E-4DBA-A620-2D3EF44A9F2D';
+            configTextLayerSpan.textContent = this.config.textLayer || 'DBDBF888-5493-42C8-A5B1-E0107ED363B5';
         }
         
         if (configLocationLayerSpan && this.config) {
-            configLocationLayerSpan.textContent = this.config.locationLayer || '73F19730-1C97-4660-8091-37428DDEC4A6';
+            configLocationLayerSpan.textContent = this.config.locationLayer || '0D3D4A82-F3B0-42AE-9C90-CD88ECC9222D';
         }
         
         if (configSourceIdSpan && this.config) {
-            configSourceIdSpan.textContent = this.config.sourceId || '572187142-1CDC27E3-762F-4054-86F7-3403FA9518E0';
+            configSourceIdSpan.textContent = this.config.sourceId || '1185605207-1CDC27E3-762F-4054-86F7-3403FA9518E0';
         }
         
         // Update API endpoints info display
@@ -1737,8 +1771,8 @@ class MukanaScraperInjector {
     updateAPIEndpointsInfo() {
         const apiEndpointsInfo = document.querySelector('#mukana-config-status + div');
         if (apiEndpointsInfo && this.config) {
-            const docId = this.config.documentId || '572187142';
-            const port = this.config.port || '49262';
+            const docId = this.config.documentId || '1185605207';
+            const port = this.config.port || '8989';
             
             apiEndpointsInfo.innerHTML = `
                 <strong>API Endpoints will be:</strong><br>
@@ -2008,7 +2042,7 @@ QR Endpoint:
             
             console.log('🌐 Attempting to connect to QR endpoint:', qrEndpoint);
             
-            const response = await fetch(qrEndpoint, {
+            const response = await this.fetchViaBackground(qrEndpoint, {
                 method: 'GET',
                 headers: {
                     'User-Agent': 'MukanaScraper/1.0'
@@ -2053,7 +2087,7 @@ QR Endpoint:
             
             console.log('🌐 Clearing QR endpoint:', qrEndpoint);
             
-            const response = await fetch(qrEndpoint, {
+            const response = await this.fetchViaBackground(qrEndpoint, {
                 method: 'GET',
                 headers: {
                     'User-Agent': 'MukanaScraper/1.0'
@@ -2097,7 +2131,7 @@ QR Endpoint:
             
             console.log('🌐 Clearing question tag endpoint:', tagEndpoint);
             
-            const response = await fetch(tagEndpoint, {
+            const response = await this.fetchViaBackground(tagEndpoint, {
                 method: 'GET',
                 headers: {
                     'User-Agent': 'MukanaScraper/1.0'
@@ -2141,7 +2175,7 @@ QR Endpoint:
             
             console.log('🌐 Clearing panelist queue endpoint:', panelistEndpoint);
             
-            const response = await fetch(panelistEndpoint, {
+            const response = await this.fetchViaBackground(panelistEndpoint, {
                 method: 'GET',
                 headers: {
                     'User-Agent': 'MukanaScraper/1.0'
@@ -2386,6 +2420,9 @@ performQuestionCheck() {
             console.log('  - Comment:', lastData.comment?.substring(0, 50));
             console.log('  - Location:', lastData.location);
             console.log('  - URL:', lastData.extractedUrl);
+            console.log('  - Vote Count:', lastData.voteCount);
+            console.log('  - Has Source Marker:', lastData.hasSourceMarker);
+            console.log('  - Panelist State:', lastData.panelistState);
             console.log('  - Panelist Queue:', lastData.panelistQueue);
             console.log('  - Timestamp:', lastData.timestamp);
             console.log('  - Order:', lastData.order);
@@ -2402,6 +2439,18 @@ performQuestionCheck() {
                 comment: currentQuestion.querySelector('.msg_text')?.textContent.trim() || 'No text',
                 extractedUrl: '',
                 panelistQueue: this.extractPanelistQueueData(currentQuestion),
+                voteCount: currentQuestion.querySelector('.msg_info .vote_count')?.textContent.trim() || '0',
+                hasSourceMarker: !!currentQuestion.querySelector('.msg_info .msg_sourceMarker'),
+                sourceMarkerSVG: currentQuestion.querySelector('.msg_info .msg_sourceMarker')?.innerHTML.trim() || '',
+                panelistState: (() => {
+                    const panelistNameWrap = currentQuestion.querySelector('.msg_inner .panelist_nameWrap');
+                    if (panelistNameWrap) {
+                        const classList = panelistNameWrap.className;
+                        if (classList.includes('active hostControl')) return 'active';
+                        if (classList.includes('queued hostControl')) return 'queued';
+                    }
+                    return 'unknown';
+                })(),
                 timestamp: Date.now(),
                 order: 1
             }];
@@ -2613,7 +2662,7 @@ performQuestionCheck() {
             const titleParam = encodeURIComponent(JSON.stringify(clearTitleData));
             const titleEndpoint = `http://127.0.0.1:${this.config.port}/api/v1/documents/${this.config.documentId}/layers/${this.config.titleLayer}?include=data.attributes.input-values&fields%5Binput-values%5D=tvGroup_Content__Text_TypeMultiline&update=${titleParam}`;
             
-            await fetch(titleEndpoint, { method: 'GET' });
+            await this.fetchViaBackground(titleEndpoint, { method: 'GET' });
             console.log('✅ Title cleared in mimoLive');
             
             // Clear question text
@@ -2625,7 +2674,7 @@ performQuestionCheck() {
             const textParam = encodeURIComponent(JSON.stringify(clearTextData));
             const textEndpoint = `http://127.0.0.1:${this.config.port}/api/v1/documents/${this.config.documentId}/layers/${this.config.textLayer}?include=data.attributes.input-values&fields%5Binput-values%5D=tvGroup_Content__Text_TypeMultiline&update=${textParam}`;
             
-            await fetch(textEndpoint, { method: 'GET' });
+            await this.fetchViaBackground(textEndpoint, { method: 'GET' });
             console.log('✅ Question text cleared in mimoLive');
             
             // Clear question tag
@@ -2637,7 +2686,7 @@ performQuestionCheck() {
             const tagParam = encodeURIComponent(JSON.stringify(clearTagData));
             const tagEndpoint = `http://127.0.0.1:${this.config.port}/api/v1/documents/${this.config.documentId}/layers/${this.config.questionTagLayer}?include=data.attributes.input-values&fields%5Binput-values%5D=tvGroup_Content__Text_TypeMultiline&update=${tagParam}`;
             
-            await fetch(tagEndpoint, { method: 'GET' });
+            await this.fetchViaBackground(tagEndpoint, { method: 'GET' });
             console.log('✅ Question tag cleared in mimoLive');
             
             // Clear panelist queue
@@ -2649,7 +2698,7 @@ performQuestionCheck() {
             const panelistParam = encodeURIComponent(JSON.stringify(clearPanelistData));
             const panelistEndpoint = `http://127.0.0.1:${this.config.port}/api/v1/documents/${this.config.documentId}/layers/${this.config.panelistQueueLayer}?include=data.attributes.input-values&fields%5Binput-values%5D=tvGroup_Content__Text_TypeMultiline&update=${panelistParam}`;
             
-            await fetch(panelistEndpoint, { method: 'GET' });
+            await this.fetchViaBackground(panelistEndpoint, { method: 'GET' });
             console.log('✅ Panelist queue cleared in mimoLive');
             
             // Clear location
@@ -2661,7 +2710,7 @@ performQuestionCheck() {
             const locationParam = encodeURIComponent(JSON.stringify(clearLocationData));
             const locationEndpoint = `http://127.0.0.1:${this.config.port}/api/v1/documents/${this.config.documentId}/layers/${this.config.locationLayer}?include=data.attributes.input-values&fields%5Binput-values%5D=tvGroup_Content__Text_TypeMultiline&update=${locationParam}`;
             
-            await fetch(locationEndpoint, { method: 'GET' });
+            await this.fetchViaBackground(locationEndpoint, { method: 'GET' });
             console.log('✅ Location cleared in mimoLive');
             
             // Clear QR code
@@ -2673,7 +2722,7 @@ performQuestionCheck() {
             const qrParam = encodeURIComponent(JSON.stringify(clearQRData));
             const qrEndpoint = `http://127.0.0.1:${this.config.port}/api/v1/documents/${this.config.documentId}/sources/${this.config.sourceId}?include=data.attributes.input-values&fields%5Binput-values%5D=tvGroup_Content__QR_Content&update=${qrParam}`;
             
-            await fetch(qrEndpoint, { method: 'GET' });
+            await this.fetchViaBackground(qrEndpoint, { method: 'GET' });
             console.log('✅ QR code cleared in mimoLive');
             
             // Clear stored data
@@ -2748,11 +2797,11 @@ performQuestionCheck() {
                 }
             };
             const updateParam = encodeURIComponent(JSON.stringify(testData));
-            const titleEndpoint = `http://127.0.0.1:49262/api/v1/documents/572187142/layers/D692CF88-5C77-47F3-A513-5129BDB76FC7?include=data.attributes.input-values&fields%5Binput-values%5D=tvGroup_Content__Title&update=${updateParam}`;
+            const titleEndpoint = `http://127.0.0.1:8989/api/v1/documents/1185605207/layers/9F2DCEA4-B78A-439A-809A-83337E12AEE8?include=data.attributes.input-values&fields%5Binput-values%5D=tvGroup_Content__Title&update=${updateParam}`;
             
             console.log('🌐 Testing title endpoint:', titleEndpoint);
             
-            const response = await fetch(titleEndpoint, {
+            const response = await this.fetchViaBackground(titleEndpoint, {
                 method: 'GET',
                 headers: {
                     'User-Agent': 'MukanaScraper/1.0'
@@ -2901,14 +2950,14 @@ performQuestionCheck() {
     async resetConfiguration() {
         try {
             const defaultConfig = {
-                documentId: '572187142',
-                port: '49262',
-                titleLayer: 'D692CF88-5C77-47F3-A513-5129BDB76FC7',
-                questionTagLayer: 'D692CF88-5C77-47F3-A513-5129BDB76FC8',
+                documentId: '1185605207',
+                port: '8989',
+                titleLayer: '9F2DCEA4-B78A-439A-809A-83337E12AEE8',
+                questionTagLayer: 'FE24ACB7-524C-4659-B04D-824FB91F1E05',
                 panelistQueueLayer: '6EEAD85B-1057-4490-934F-EB524BA1EDC5',
-                textLayer: '11F0706A-4E1E-4DBA-A620-2D3EF44A9F2D',
-                locationLayer: '73F19730-1C97-4660-8091-37428DDEC4A6',
-                sourceId: '572187142-1CDC27E3-762F-4054-86F7-3403FA9518E0'
+                textLayer: 'DBDBF888-5493-42C8-A5B1-E0107ED363B5',
+                locationLayer: '0D3D4A82-F3B0-42AE-9C90-CD88ECC9222D',
+                sourceId: '1185605207-1CDC27E3-762F-4054-86F7-3403FA9518E0'
             };
             
             // Update local config
