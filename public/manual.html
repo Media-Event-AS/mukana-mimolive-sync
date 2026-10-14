@@ -57,6 +57,7 @@
   <a href="#live">During the show</a>
   <a href="#fields">Field reference</a>
   <a href="#traffic">How it connects</a>
+  <a href="#listen">Address &amp; port</a>
   <a href="#background">Run in background</a>
   <a href="#trouble">Troubleshooting</a>
   <a href="#limits">Limitations</a>
@@ -100,8 +101,8 @@ npm start</code></pre>
 <p>Open <code>http://localhost:8790</code>, or <code>http://&lt;machine-ip&gt;:8790</code> from another machine on the LAN. Stop with <b>Ctrl+C</b>. If sync was running when the service stopped, it starts again automatically on the next launch.</p>
 <table>
   <tr><th>Env variable</th><th>Default</th><th>Purpose</th></tr>
-  <tr><td><code>PORT</code></td><td>8790</td><td>Web UI port</td></tr>
-  <tr><td><code>HOST</code></td><td>0.0.0.0</td><td>Bind address. <code>127.0.0.1</code> = this machine only.</td></tr>
+  <tr><td><code>PORT</code></td><td>8790</td><td>Web UI port. Overrides the setting in <b>5 · Service</b>.</td></tr>
+  <tr><td><code>HOST</code></td><td>0.0.0.0</td><td>Bind address. <code>127.0.0.1</code> = this machine only. Overrides the setting in <b>5 · Service</b>.</td></tr>
   <tr><td><code>UI_PASSWORD</code></td><td>–</td><td>Optional password for this UI. Off by default.</td></tr>
   <tr><td><code>DATA_DIR</code></td><td>data</td><td>Where settings and the token are stored.</td></tr>
   <tr><td><code>TZ</code></td><td>system</td><td>Time zone for HH:MM fields, e.g. <code>Europe/Oslo</code>.</td></tr>
@@ -194,6 +195,16 @@ When no question is live, Question and Panel fields are cleared; Next Up and Cou
   <tr><td>This UI → service</td><td>Status refresh every second while the page is open.</td><td>LAN only.</td></tr>
 </table>
 <div class="note">Firebase bills for downloaded data and concurrent connections, and the Firebase project belongs to Mukana, not to us. The load is about the same as one extra panelist with panelView open, and lower in practice, since panelView also streams chat, likes and DMs.</div>
+
+<h2 id="listen">Change address and port</h2>
+<p>In <b>5 · Service</b>, choose where the web UI listens and on which port, then click <b>Apply</b>:</p>
+<table>
+  <tr><th>Choice</th><th>Who can open the UI</th></tr>
+  <tr><td><code>0.0.0.0</code> — All interfaces</td><td>Everyone on the LAN, and this machine (default)</td></tr>
+  <tr><td><code>127.0.0.1</code> — This machine only</td><td>Only a browser on the machine running the service</td></tr>
+  <tr><td>A specific IP (e.g. <code>192.168.1.20</code>)</td><td>Only via that network interface</td></tr>
+</table>
+<p>The service opens the new address first and keeps the old one if that fails (for example if the port is in use), so you can't lock yourself out by mistake. The page then moves to the new address. If <code>HOST</code> or <code>PORT</code> is set as an environment variable, that field is locked in the UI.</p>
 
 <h2 id="background">Run in the background (macOS)</h2>
 <p>The easiest way is section <b>5 · Service</b> in the control panel:</p>

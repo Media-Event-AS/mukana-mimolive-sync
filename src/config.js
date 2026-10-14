@@ -54,6 +54,8 @@ export const DEFAULTS = {
     origin: 'https://officehours.pxclabs.com',
   },
   mimolive: { host: '127.0.0.1', port: 8989, documentId: '', password: '' },
+  // Web UI listen address. HOST / PORT environment variables override these.
+  server: { host: '0.0.0.0', port: 8790 },
   // [{ field, kind: 'layer'|'source', id, key }]
   targets: [],
   autoStart: false,

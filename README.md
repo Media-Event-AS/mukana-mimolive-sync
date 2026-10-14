@@ -51,13 +51,15 @@ Open `http://localhost:8790` on the same machine, or `http://<machine-ip>:8790` 
 
 | Env variable | Default | Purpose |
 |---|---|---|
-| `PORT` | `8790` | Web UI port |
-| `HOST` | `0.0.0.0` | Bind address (`127.0.0.1` = this machine only) |
+| `PORT` | `8790` | Web UI port. Overrides (and locks) the setting in the web UI. |
+| `HOST` | `0.0.0.0` | Bind address (`127.0.0.1` = this machine only). Overrides (and locks) the setting in the web UI. |
 | `UI_PASSWORD` | – | Optional password for the web UI. Off by default. |
 | `DATA_DIR` | `data` | Where `config.json` is stored (includes the refresh token, file mode 600) |
 | `TZ` | system | Time zone for the HH:MM fields, e.g. `Europe/Oslo` |
 
 Example: `PORT=9000 TZ=Europe/Oslo npm start`
+
+The listen address and port can also be changed in the web UI under **5 · Service**. The change takes effect immediately and is remembered.
 
 If sync was running when the service stopped, it starts again automatically on the next launch.
 

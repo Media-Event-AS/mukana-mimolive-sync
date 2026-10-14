@@ -142,15 +142,17 @@ const mimo = http.createServer((req, res) => {
 const [securePort, rtdbPort, mimoPort] = await Promise.all([listen(secure), listen(rtdb), listen(mimo)]);
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mms-'));
 const appPort = 18790 + Math.floor(Math.random() * 1000);
+fs.writeFileSync(path.join(dataDir, 'config.json'), JSON.stringify({ server: { host: '127.0.0.1', port: appPort } }));
 const child = spawn(process.execPath, [path.join(here, '..', 'src', 'server.js')], {
-  env: { ...process.env, PORT: String(appPort), HOST: '127.0.0.1', DATA_DIR: dataDir, SECURETOKEN_URL: `http://127.0.0.1:${securePort}/v1/token` },
+  env: { ...process.env, PORT: '', HOST: '', DATA_DIR: dataDir, SECURETOKEN_URL: `http://127.0.0.1:${securePort}/v1/token` },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 let childOut = '';
 child.stdout.on('data', (c) => (childOut += c));
 child.stderr.on('data', (c) => (childOut += c));
+let appPortMoved = null;
 const api = async (method, p, body) => {
-  const r = await fetch(`http://127.0.0.1:${appPort}${p}`, { method, headers: { 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
+  const r = await fetch(`http://127.0.0.1:${appPortMoved || appPort}${p}`, { method, headers: { 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
   return { status: r.status, json: await r.json() };
 };
 const waitFor = async (fn, label, ms = 4000) => {
@@ -257,6 +259,20 @@ try {
   mimoCalls.length = 0;
   await api('POST', '/api/push');
   assert.equal(mimoCalls.length, 4);
+
+  // change listen port at runtime
+  const srv = await api('GET', '/api/server');
+  assert.equal(srv.json.port, appPort);
+  assert.ok(srv.json.addresses.some((x) => x.address === '0.0.0.0'));
+  assert.equal((await api('POST', '/api/server', { host: '127.0.0.1', port: 70000 })).status, 400);
+  const newPort = appPort + 1;
+  const moved = await api('POST', '/api/server', { host: '127.0.0.1', port: newPort });
+  assert.equal(moved.json.changed, true, JSON.stringify(moved.json));
+  assert.equal((await fetch(`http://127.0.0.1:${newPort}/api/status`)).status, 200);
+  await sleep(1700);
+  assert.ok(await fetch(`http://127.0.0.1:${appPort}/api/status`).then(() => false, () => true), 'old port closed');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'config.json'), 'utf8')).server.port, newPort);
+  appPortMoved = newPort;
 
   // stop
   const stopped = await api('POST', '/api/stop');

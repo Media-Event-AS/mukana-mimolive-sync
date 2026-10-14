@@ -148,6 +148,13 @@
 
   <section class="wide">
     <h2>5 · Service</h2>
+    <div class="row" style="max-width:720px">
+      <div><label for="srvHost">Web UI listens on</label><select id="srvHost"></select></div>
+      <div class="narrow"><label for="srvPort">Port</label><input id="srvPort" inputmode="numeric"></div>
+      <div style="flex:0 0 auto"><button id="btnSrvApply">Apply</button></div>
+    </div>
+    <div class="hint" id="srvHint"></div>
+    <label style="margin-top:16px">Start at login</label>
     <div id="asStatus" class="hint" style="margin-top:0">Checking…</div>
     <div class="btns" id="asBtns"></div>
     <div class="hint" id="asHint"></div>
@@ -333,6 +340,30 @@ $('btnVerify').onclick = async () => {
 };
 $('btnClear').onclick =async () => { await api('POST', '/api/clear'); toast('mimoLive cleared'); };
 
+async function renderServer() {
+  let st; try { st = await api('GET', '/api/server'); } catch { return; }
+  const known = st.addresses.some(a => a.address === st.host) ? st.addresses : [{ address: st.host, label: 'current' }, ...st.addresses];
+  $('srvHost').innerHTML = known.map(a => `<option value="${esc(a.address)}" ${a.address === st.host ? 'selected' : ''}>${esc(a.address)} — ${esc(a.label)}</option>`).join('');
+  $('srvPort').value = st.port;
+  $('srvHost').disabled = st.envLock.host; $('srvPort').disabled = st.envLock.port;
+  $('btnSrvApply').disabled = st.envLock.host && st.envLock.port;
+  const locked = [st.envLock.host && 'HOST', st.envLock.port && 'PORT'].filter(Boolean);
+  $('srvHint').innerHTML = (locked.length ? `${locked.join(' and ')} ${locked.length > 1 ? 'are' : 'is'} set by environment variable and can't be changed here. ` : '')
+    + 'Changes take effect immediately and are remembered. The page moves to the new address.';
+}
+$('btnSrvApply').onclick = async () => {
+  const host = $('srvHost').value, port = Number($('srvPort').value);
+  const local = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+  if (host === '127.0.0.1' && !local && !confirmInline('“This machine only” means you lose access from this computer. Click again to confirm.', 'srvlocal')) return;
+  try {
+    await api('POST', '/api/server', { host, port });
+    const nextHost = host === '0.0.0.0' ? location.hostname : (host === '127.0.0.1' && local ? location.hostname : host);
+    const url = `${location.protocol}//${nextHost.includes(':') ? '[' + nextHost + ']' : nextHost}:${port}/`;
+    $('srvHint').innerHTML = `Moved to <a href="${esc(url)}" style="color:var(--accent)">${esc(url)}</a>…`;
+    setTimeout(() => { location.href = url; }, 800);
+  } catch (e) { toast(e.message, true); }
+};
+
 async function renderAutostart() {
   let st; try { st = await api('GET', '/api/autostart'); } catch { return; }
   const btns = $('asBtns'); btns.innerHTML = '';
@@ -384,6 +415,7 @@ function confirmInline(msg, key) {
   await loadElements();
   renderMapping();
   poll();
+  renderServer();
   renderAutostart();
 })();
 </script>

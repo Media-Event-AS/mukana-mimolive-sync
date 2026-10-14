@@ -7,17 +7,42 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import crypto from 'node:crypto';
+import os from 'node:os';
 import { loadConfig, saveConfig, updateConfig, publicConfig, FIELDS } from './config.js';
 import { SyncEngine } from './sync.js';
 import { MimoLive, discover } from './mimolive.js';
 import * as autostart from './autostart.js';
 
 const PUBLIC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
-const PORT = Number(process.env.PORT || 8790);
-const HOST = process.env.HOST || '0.0.0.0';
 const UI_PASSWORD = process.env.UI_PASSWORD || '';
 
 let config = loadConfig();
+// Listen address: env vars win (and lock the setting), otherwise the saved config.
+const ENV_LOCK = { host: !!process.env.HOST, port: !!process.env.PORT };
+let listenAddr = {
+  host: process.env.HOST || config.server.host || '0.0.0.0',
+  port: Number(process.env.PORT || config.server.port || 8790),
+};
+
+function localAddresses() {
+  const list = [{ address: '0.0.0.0', label: 'All interfaces (LAN + this machine)' }, { address: '127.0.0.1', label: 'This machine only' }];
+  for (const [name, addrs] of Object.entries(os.networkInterfaces())) {
+    for (const a of addrs || []) if (a.family === 'IPv4' && !a.internal) list.push({ address: a.address, label: `${name} only` });
+  }
+  return list;
+}
+
+function listenOn(host, port) {
+  return new Promise((resolve, reject) => {
+    const s = http.createServer(handleRequest);
+    s.once('error', reject);
+    s.listen(port, host, () => {
+      s.off('error', reject);
+      resolve(s);
+    });
+  });
+}
+
 const engine = new SyncEngine(
   () => config,
   (newRefresh) => {
@@ -127,6 +152,36 @@ const routes = {
     return engine.status();
   },
 
+  'GET /api/server': () => ({ ...listenAddr, envLock: ENV_LOCK, addresses: localAddresses() }),
+  'POST /api/server': async (req) => {
+    const body = await readBody(req);
+    const host = String(body.host ?? listenAddr.host).trim();
+    const port = Number(body.port ?? listenAddr.port);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Port must be 1–65535');
+    if (!/^(\d{1,3}\.){3}\d{1,3}$|^::1?$|^[\w.-]+$/.test(host)) throw new Error('Invalid IP address');
+    if ((ENV_LOCK.host && host !== listenAddr.host) || (ENV_LOCK.port && port !== listenAddr.port)) {
+      throw new Error('Set by the HOST/PORT environment variable. Change it where the service is started.');
+    }
+    if (host === listenAddr.host && port === listenAddr.port) return { ...listenAddr, changed: false };
+    let next;
+    try {
+      next = await listenOn(host, port); // bind the new address first; keep the old one if this fails
+    } catch (e) {
+      throw new Error(e.code === 'EADDRINUSE' ? `Port ${port} is already in use on ${host}` : e.code === 'EADDRNOTAVAIL' ? `${host} is not an address of this machine` : e.message);
+    }
+    const old = server;
+    server = next;
+    listenAddr = { host, port };
+    config.server = { host, port };
+    saveConfig(config);
+    console.log(`Now listening on http://${host}:${port}`);
+    setTimeout(() => {
+      old.close();
+      old.closeAllConnections?.();
+    }, 1500);
+    return { ...listenAddr, changed: true };
+  },
+
   'GET /api/autostart': () => autostart.status(),
   'POST /api/autostart/enable': async (req) => {
     const { now } = await readBody(req);
@@ -171,7 +226,7 @@ const routes = {
   },
 };
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   const url = new URL(req.url, 'http://x');
   if (req.method === 'POST' && url.pathname === '/api/login') {
     const { password } = await readBody(req).catch(() => ({}));
@@ -205,15 +260,20 @@ const server = http.createServer(async (req, res) => {
     }
   }
   send(res, 404, { error: 'Not found' });
-});
+}
 
-server.listen(PORT, HOST, () => {
+let server = await listenOn(listenAddr.host, listenAddr.port).catch((e) => {
+  console.error(`Cannot listen on ${listenAddr.host}:${listenAddr.port}: ${e.code || e.message}. Start with PORT=… to use another port.`);
+  process.exit(1);
+});
+{
+  const { host: HOST, port: PORT } = listenAddr;
   console.log(`Mukana → mimoLive Sync running at http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
   if (!UI_PASSWORD) console.log('Tip: set UI_PASSWORD to password-protect the web UI on the network.');
   if (config.autoStart && config.mukana.refreshToken && config.mukana.eventId) {
     engine.start().catch((e) => console.error('Autostart failed:', e.message));
   }
-});
+}
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {
