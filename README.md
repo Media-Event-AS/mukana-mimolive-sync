@@ -141,7 +141,7 @@ The v2 extension code (last version 2.0.8) is kept on the [`legacy-v2-extension`
 |---|---|
 | Developer | Ronny Hofsøy |
 | Company | [Media Event AS](https://www.mediaevent.no), Tromsø, Norway |
-| Contact | post@mediaevent.no |
+| Contact | ronny@mediaevent.no |
 | Issues | [GitHub Issues](https://github.com/Media-Event-AS/mukana-mimolive-sync/issues) |
 
 Mukana and mimoLive are products of their respective owners. This tool is independent and not affiliated with or endorsed by them.
