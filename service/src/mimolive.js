@@ -37,6 +37,13 @@ export class MimoLive {
     }));
   }
 
+  /** Read current input values of a layer or source. */
+  async getInputs({ documentId, kind, id }) {
+    const coll = kind === 'source' ? 'sources' : 'layers';
+    const j = await getJson(`${this.base}/documents/${documentId}/${coll}/${id}`);
+    return { name: j.data?.attributes?.name || id, values: j.data?.attributes?.['input-values'] || {} };
+  }
+
   /** Set one input value on a layer or source. Uses the ?update= form proven in the v2 extension. */
   async setInput({ documentId, kind, id, key, value }) {
     const coll = kind === 'source' ? 'sources' : 'layers';

@@ -62,8 +62,11 @@ const rtdb = http.createServer((req, res) => {
 const sse = (p, type, pth, data) => sseClients[p]?.write(`event: ${type}\ndata: ${JSON.stringify({ path: pth, data })}\n\n`);
 
 const mimoCalls = [];
+const mimoState = {}; // id -> input-values
 const mimo = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
+  const elId = u.pathname.match(/\/(?:layers|sources)\/([^/]+)$/)?.[1];
+  if (elId && !u.searchParams.has('update')) return res.end(JSON.stringify({ data: { id: elId, attributes: { name: 'El ' + elId, 'input-values': mimoState[elId] || {} } } }));
   res.setHeader('Content-Type', 'application/vnd.api+json');
   if (u.pathname === '/api/v1/documents') return res.end(JSON.stringify({ data: [{ id: '1185605207', type: 'documents', attributes: { name: 'Show.tvshow' } }] }));
   if (u.pathname.endsWith('/layers') && !u.searchParams.has('update'))
@@ -71,7 +74,9 @@ const mimo = http.createServer((req, res) => {
   if (u.pathname.endsWith('/sources') && !u.searchParams.has('update'))
     return res.end(JSON.stringify({ data: [{ id: 'S-QR', attributes: { name: 'QR', 'input-values': { tvGroup_Content__QR_Content: '' } } }] }));
   if (u.searchParams.has('update')) {
-    mimoCalls.push({ path: u.pathname, update: JSON.parse(u.searchParams.get('update')) });
+    const upd = JSON.parse(u.searchParams.get('update'));
+    mimoCalls.push({ path: u.pathname, update: upd });
+    if (elId) mimoState[elId] = { ...(mimoState[elId] || {}), ...upd['input-values'] };
     return res.end('{"data":{}}');
   }
   res.statusCode = 404;
@@ -151,6 +156,13 @@ try {
   assert.equal(byLayer('L-QUEUE').tvGroup_Note__Note_TypeMultiline, '1. Ola Panel');
   assert.equal(byLayer('S-QR').tvGroup_Content__QR_Content, 'https://nordlys.no/x');
   assert.ok(mimoCalls.find((c) => c.path === '/api/v1/documents/1185605207/sources/S-QR'));
+
+  // verify endpoint reads back from mimoLive
+  const ver = await api('GET', '/api/mimolive/verify');
+  assert.equal(ver.json.length, 4);
+  assert.ok(ver.json.every((r) => r.ok), JSON.stringify(ver.json));
+  const st2 = await api('GET', '/api/status');
+  assert.equal(st2.json.current.values.votes, '4');
 
   // only changed fields are re-sent (patch votes -> nothing mapped changes)
   mimoCalls.length = 0;

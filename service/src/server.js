@@ -114,6 +114,23 @@ const routes = {
     return engine.status();
   },
 
+  // Read back every mapped target from mimoLive and compare with what the engine expects.
+  'GET /api/mimolive/verify': async () => {
+    const ml = new MimoLive(config.mimolive);
+    const expected = engine.current.values;
+    return Promise.all(
+      config.targets.map(async (t) => {
+        const want = expected[t.field] ?? '';
+        try {
+          const { name, values } = await ml.getInputs({ documentId: config.mimolive.documentId, kind: t.kind, id: t.id });
+          const actual = values[t.key];
+          return { field: t.field, target: name, key: t.key, expected: want, actual: actual ?? null, ok: String(actual ?? '') === String(want), keyExists: t.key in values };
+        } catch (e) {
+          return { field: t.field, target: t.id, key: t.key, expected: want, actual: null, ok: false, error: e.message };
+        }
+      })
+    );
+  },
   'GET /api/mimolive/discover': async (req, url) => discover(Number(url.searchParams.get('port') || 8989)),
   'GET /api/mimolive/documents': async (req, url) =>
     new MimoLive({ host: url.searchParams.get('host'), port: url.searchParams.get('port') || 8989 }).documents(),

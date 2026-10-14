@@ -64,7 +64,7 @@ export function deriveFields(liveQ, hands, onlineList) {
       questionFull: full,
       location: cleanText(liveQ.l),
       tag: cleanText(liveQ.tag),
-      votes: String(liveQ.v ?? 0),
+      votes: String(Math.abs(Number(liveQ.v) || 0)), // Mukana stores votes negated for sorting
       url,
       queue: queued.join(', '),
       activePanelist,

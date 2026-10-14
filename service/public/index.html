@@ -132,8 +132,10 @@
     <table><tbody id="liveBody"></tbody></table>
     <div class="btns">
       <button id="btnPush">Send alt på nytt</button>
+      <button id="btnVerify">Verifiser mot mimoLive</button>
       <button id="btnClear" class="danger">Tøm mimoLive</button>
     </div>
+    <table id="verify" style="margin-top:10px"></table>
     <label>Logg</label>
     <div class="log" id="log"></div>
   </section>
@@ -282,7 +284,16 @@ $('btnSaveMap').onclick = () => saveCfg({ targets: collectMapping() }, 'Mapping 
 $('btnStart').onclick = async () => { try { renderStatus(await api('POST', '/api/start')); } catch (e) { toast(e.message, true); } };
 $('btnStop').onclick = async () => renderStatus(await api('POST', '/api/stop'));
 $('btnPush').onclick = async () => { await api('POST', '/api/push'); toast('Sendt'); };
-$('btnClear').onclick = async () => { await api('POST', '/api/clear'); toast('mimoLive tømt'); };
+$('btnVerify').onclick = async () => {
+  try {
+    const rows = await api('GET', '/api/mimolive/verify');
+    const label = (id) => (FIELDS.find(f => f.id === id) || {}).label || id;
+    $('verify').innerHTML = '<thead><tr><th></th><th>Felt</th><th>Lag</th><th>I mimoLive nå</th></tr></thead>' + rows.map(r =>
+      `<tr><td>${r.ok ? '✅' : '❌'}</td><td>${esc(label(r.field))}</td><td>${esc(r.target)}</td><td class="val">${esc(r.error || (r.keyExists === false ? 'input-feltet finnes ikke på laget' : r.actual))}</td></tr>`).join('');
+    toast(rows.every(r => r.ok) ? 'Alt stemmer' : 'Avvik funnet', !rows.every(r => r.ok));
+  } catch (e) { toast(e.message, true); }
+};
+$('btnClear').onclick =async () => { await api('POST', '/api/clear'); toast('mimoLive tømt'); };
 
 (async () => {
   FIELDS = await api('GET', '/api/fields');
