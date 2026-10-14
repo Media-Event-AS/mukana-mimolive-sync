@@ -39,7 +39,8 @@ function authorized(req) {
   if (!UI_PASSWORD) return true;
   const h = req.headers.authorization || '';
   if (!h.startsWith('Basic ')) return false;
-  const [, pass] = Buffer.from(h.slice(6), 'base64').toString().split(':');
+  const decoded = Buffer.from(h.slice(6), 'base64').toString();
+  const pass = decoded.slice(decoded.indexOf(':') + 1); // username is ignored; password may contain ':'
   return pass === UI_PASSWORD;
 }
 

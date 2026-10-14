@@ -24,7 +24,7 @@ UI_PASSWORD=velg-et-passord npm start
 |---|---|---|
 | `PORT` | 8790 | Web-UI-port |
 | `HOST` | 0.0.0.0 | Bind-adresse |
-| `UI_PASSWORD` | – | Basic auth for UI (anbefalt, UI-et styrer en innlogget Mukana-sesjon) |
+| `UI_PASSWORD` | – | Basic auth for UI. Brukernavn: hva som helst (f.eks. `admin`), passord: verdien av `UI_PASSWORD` |
 | `DATA_DIR` | `service/data` | Hvor `config.json` lagres (inneholder refresh-token, filmodus 600) |
 
 ## Oppsett i web-UI
