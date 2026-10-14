@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>no.mediaevent.mukana-sync</string>
+  <key>ProgramArguments</key>
+  <array>
+    <!-- Juster: `which node` -->
+    <string>/opt/homebrew/bin/node</string>
+    <string>/Users/ronnyhofsoy/Projects/Mukana-Mimolive-Sync-v2/service/src/server.js</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/ronnyhofsoy/Projects/Mukana-Mimolive-Sync-v2/service</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PORT</key><string>8790</string>
+    <key>UI_PASSWORD</key><string>endre-meg</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/tmp/mukana-sync.log</string>
+  <key>StandardErrorPath</key><string>/tmp/mukana-sync.log</string>
+</dict>
+</plist>

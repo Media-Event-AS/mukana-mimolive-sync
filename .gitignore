@@ -39,3 +39,6 @@ build/
 .env.test.local
 .env.production.local
 sourceHTML
+
+# Service runtime data (contains refresh token)
+service/data/
