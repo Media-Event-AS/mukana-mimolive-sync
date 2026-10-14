@@ -7,9 +7,9 @@
   <array>
     <!-- Adjust: `which node` -->
     <string>/opt/homebrew/bin/node</string>
-    <string>/Users/ronnyhofsoy/Projects/Mukana-Mimolive-Sync-v2/service/src/server.js</string>
+    <string>/Users/ronnyhofsoy/Projects/Mukana-Mimolive-Sync-v2/src/server.js</string>
   </array>
-  <key>WorkingDirectory</key><string>/Users/ronnyhofsoy/Projects/Mukana-Mimolive-Sync-v2/service</string>
+  <key>WorkingDirectory</key><string>/Users/ronnyhofsoy/Projects/Mukana-Mimolive-Sync-v2</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PORT</key><string>8790</string>

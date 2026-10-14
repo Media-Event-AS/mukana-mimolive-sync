@@ -85,14 +85,13 @@ brew install node
 # Get the code
 git clone https://github.com/Media-Event-AS/mukana-mimolive-sync-v2.git
 cd mukana-mimolive-sync-v2
-git checkout node-service
 
 # Optional: run the tests
-cd service && npm test</code></pre>
+npm test</code></pre>
 <p>There is no <code>npm install</code> step. To update later: <code>git pull</code> in the repo folder, then restart the service.</p>
 
 <h2 id="run">Run</h2>
-<pre><code>cd mukana-mimolive-sync-v2/service
+<pre><code>cd mukana-mimolive-sync-v2
 npm start</code></pre>
 <p>Open <code>http://localhost:8790</code>, or <code>http://&lt;machine-ip&gt;:8790</code> from another machine on the LAN. Stop with <b>Ctrl+C</b>. If sync was running when the service stopped, it starts again automatically on the next launch.</p>
 <table>
@@ -100,7 +99,7 @@ npm start</code></pre>
   <tr><td><code>PORT</code></td><td>8790</td><td>Web UI port</td></tr>
   <tr><td><code>HOST</code></td><td>0.0.0.0</td><td>Bind address. <code>127.0.0.1</code> = this machine only.</td></tr>
   <tr><td><code>UI_PASSWORD</code></td><td>–</td><td>Optional password for this UI. Off by default.</td></tr>
-  <tr><td><code>DATA_DIR</code></td><td>service/data</td><td>Where settings and the token are stored.</td></tr>
+  <tr><td><code>DATA_DIR</code></td><td>data</td><td>Where settings and the token are stored.</td></tr>
   <tr><td><code>TZ</code></td><td>system</td><td>Time zone for HH:MM fields, e.g. <code>Europe/Oslo</code>.</td></tr>
 </table>
 <p>Example: <code>PORT=9000 TZ=Europe/Oslo npm start</code></p>
@@ -139,7 +138,7 @@ npm start</code></pre>
   <li>Run: <pre><code>copy(firebase.auth().currentUser.refreshToken)</code></pre> The console prints <code>undefined</code>. That's expected: the token is now on your clipboard.</li>
   <li>Paste it into <b>Refresh token</b> and click <b>Save</b>. The field then shows <i>Saved ✓</i>.</li>
 </ol>
-<div class="note">The token is stored only in <code>service/data/config.json</code> on this machine and is never shown in the UI. Treat it like a password.</div>
+<div class="note">The token is stored only in <code>data/config.json</code> on this machine and is never shown in the UI. Treat it like a password.</div>
 <div class="note warn">Google blocks sign-in inside embedded browsers (such as an app's built-in browser pane). Use a regular browser to get the token.</div>
 
 <h2 id="mapping">Mapping</h2>
@@ -193,7 +192,7 @@ When no question is live, Question and Panel fields are cleared; Next Up and Cou
 <div class="note">Firebase bills for downloaded data and concurrent connections, and the Firebase project belongs to Mukana, not to us. The load is about the same as one extra panelist with panelView open, and lower in practice, since panelView also streams chat, likes and DMs.</div>
 
 <h2 id="background">Run in the background (macOS)</h2>
-<p>To start the service at login and restart it if it stops, use the launchd file in <code>service/launchd/</code>. Edit the node path (<code>which node</code>) and the folder paths first, then:</p>
+<p>To start the service at login and restart it if it stops, use the launchd file in <code>launchd/</code>. Edit the node path (<code>which node</code>) and the folder paths first, then:</p>
 <pre><code>cp launchd/no.mediaevent.mukana-sync.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/no.mediaevent.mukana-sync.plist
 
