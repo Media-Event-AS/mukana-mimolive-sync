@@ -3,6 +3,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import crypto from 'node:crypto';
 import { loadConfig, saveConfig, updateConfig, publicConfig, FIELDS } from './config.js';
 import { SyncEngine } from './sync.js';
@@ -74,9 +75,12 @@ if(r.ok)location.href='/';else document.getElementById('e').textContent='Wrong p
 // UI may send a just-typed (unsaved) mimoLive password in a header; otherwise use the stored one.
 const mlPassword = (req) => req.headers['x-ml-password'] || config.mimolive.password || '';
 
+const pkg = createRequire(import.meta.url)('../package.json');
+
 const routes = {
   'GET /api/config': () => publicConfig(config),
   'GET /api/fields': () => FIELDS,
+  'GET /api/about': () => ({ name: 'Mukana → mimoLive Sync', version: pkg.version, author: pkg.author, homepage: pkg.homepage, bugs: pkg.bugs?.url }),
   'GET /api/status': () => engine.status(),
 
   'POST /api/config': async (req) => {

@@ -33,6 +33,9 @@
   .note { background: rgba(61,139,253,.08); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 6px; margin: 12px 0; }
   .warn { background: rgba(241,196,15,.08); border-left-color: var(--warn); }
   ol li, ul li { margin: 4px 0; }
+  footer { max-width: 1100px; margin: 0 auto; padding: 0 20px 28px; color: var(--muted); font-size: 12px; display: flex; gap: 6px 14px; flex-wrap: wrap; }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--text); }
   .diagram { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--muted); }
 </style>
 </head>
@@ -57,6 +60,7 @@
   <a href="#background">Run in background</a>
   <a href="#trouble">Troubleshooting</a>
   <a href="#limits">Limitations</a>
+  <a href="#contact">About &amp; support</a>
 </nav>
 <main>
 
@@ -220,7 +224,26 @@ launchctl unload ~/Library/LaunchAgents/no.mediaevent.mukana-sync.plist</code></
   <li>Firebase settings (API key, database URL, origin) can be changed under <i>Advanced</i> for another Mukana instance.</li>
   <li>One event per service instance. Run a second instance on another <code>PORT</code> with its own <code>DATA_DIR</code> for parallel events.</li>
 </ul>
+
+<h2 id="contact">About &amp; support</h2>
+<table>
+  <tr><td>Developer</td><td>Ronny Hofsøy</td></tr>
+  <tr><td>Company</td><td><a href="https://www.mediaevent.no" target="_blank" rel="noopener" style="color:var(--accent)">Media Event AS</a>, Tromsø, Norway</td></tr>
+  <tr><td>Contact</td><td><a href="mailto:post@mediaevent.no" style="color:var(--accent)">post@mediaevent.no</a></td></tr>
+  <tr><td>Source code</td><td><a href="https://github.com/Media-Event-AS/mukana-mimolive-sync" target="_blank" rel="noopener" style="color:var(--accent)">github.com/Media-Event-AS/mukana-mimolive-sync</a></td></tr>
+  <tr><td>Bugs &amp; feature requests</td><td><a href="https://github.com/Media-Event-AS/mukana-mimolive-sync/issues" target="_blank" rel="noopener" style="color:var(--accent)">GitHub Issues</a></td></tr>
+</table>
+<p>Mukana and mimoLive are products of their respective owners. This tool is independent and not affiliated with or endorsed by them.</p>
 </main>
+<footer>
+  <span>Mukana → mimoLive Sync <b id="ver"></b></span>
+  <span>© 2026 <a href="https://www.mediaevent.no" target="_blank" rel="noopener">Media Event AS</a></span>
+  <span>Developed by Ronny Hofsøy</span>
+  <a href="mailto:post@mediaevent.no">post@mediaevent.no</a>
+  <a href="https://github.com/Media-Event-AS/mukana-mimolive-sync" target="_blank" rel="noopener">GitHub</a>
+  <a href="https://github.com/Media-Event-AS/mukana-mimolive-sync/issues" target="_blank" rel="noopener">Report an issue</a>
+</footer>
+<script>fetch('/api/about').then(r => r.json()).then(a => { document.getElementById('ver').textContent = 'v' + a.version; }).catch(() => {});</script>
 </div>
 <script>
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

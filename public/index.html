@@ -54,6 +54,9 @@
   .log time { color: var(--muted); margin-right: 8px; }
   .stats { display: flex; gap: 20px; margin-bottom: 10px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
   .stats b { color: var(--text); }
+  footer { max-width: 1400px; margin: 0 auto; padding: 0 20px 28px; color: var(--muted); font-size: 12px; display: flex; gap: 6px 14px; flex-wrap: wrap; }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--text); }
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); padding: 10px 16px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   .toast.show { opacity: 1; }
   .toast.err { border-color: var(--err); color: var(--err); }
@@ -143,6 +146,15 @@
     <div class="log" id="log"></div>
   </section>
 </main>
+<footer id="about">
+  <span>Mukana → mimoLive Sync <b id="ver"></b></span>
+  <span>© 2026 <a href="https://www.mediaevent.no" target="_blank" rel="noopener">Media Event AS</a></span>
+  <span>Developed by Ronny Hofsøy</span>
+  <a href="mailto:post@mediaevent.no">post@mediaevent.no</a>
+  <a href="https://github.com/Media-Event-AS/mukana-mimolive-sync" target="_blank" rel="noopener">GitHub</a>
+  <a href="https://github.com/Media-Event-AS/mukana-mimolive-sync/issues" target="_blank" rel="noopener">Report an issue</a>
+</footer>
+<script>fetch('/api/about').then(r => r.json()).then(a => { document.getElementById('ver').textContent = 'v' + a.version; }).catch(() => {});</script>
 <div class="toast" id="toast"></div>
 
 <script>

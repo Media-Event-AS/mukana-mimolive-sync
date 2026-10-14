@@ -135,6 +135,17 @@ v3 replaces the Chrome extension entirely. Remove the old extension in `chrome:/
 
 The v2 extension code (last version 2.0.8) is kept on the [`legacy-v2-extension`](https://github.com/Media-Event-AS/mukana-mimolive-sync/tree/legacy-v2-extension) branch.
 
+## About & support
+
+| | |
+|---|---|
+| Developer | Ronny Hofsøy |
+| Company | [Media Event AS](https://www.mediaevent.no), Tromsø, Norway |
+| Contact | post@mediaevent.no |
+| Issues | [GitHub Issues](https://github.com/Media-Event-AS/mukana-mimolive-sync/issues) |
+
+Mukana and mimoLive are products of their respective owners. This tool is independent and not affiliated with or endorsed by them.
+
 ## Test
 
 `npm test` – unit tests, end-to-end against mock Firebase and mock mimoLive, and UI auth.
