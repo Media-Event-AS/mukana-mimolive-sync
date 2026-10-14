@@ -1,24 +1,39 @@
 // mimoLive HTTP API client (JSON:API, default port 8989) + LAN discovery.
+// Optional password: mimoLive expects the SHA-256 hex of the password in X-MimoLive-Password-SHA256.
 import os from 'node:os';
+import crypto from 'node:crypto';
 
-async function getJson(url, timeoutMs = 4000) {
-  const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-  return res.json();
+export class MimoLiveAuthError extends Error {}
+
+async function request(url, { headers = {}, timeoutMs = 4000 } = {}) {
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+  if (res.status === 401 || res.status === 403) {
+    throw new MimoLiveAuthError(`mimoLive requires a password (HTTP ${res.status}). Set it in the mimoLive section, or turn off authentication in mimoLive.`);
+  }
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status} ${t.slice(0, 120)}`);
+  }
+  return res;
 }
 
 export class MimoLive {
-  constructor({ host, port }) {
+  constructor({ host, port, password }) {
     this.base = `http://${host}:${port}/api/v1`;
+    this.headers = password ? { 'X-MimoLive-Password-SHA256': crypto.createHash('sha256').update(password).digest('hex') } : {};
+  }
+
+  async getJson(path) {
+    return (await request(`${this.base}${path}`, { headers: this.headers })).json();
   }
 
   async documents() {
-    const j = await getJson(`${this.base}/documents`);
+    const j = await this.getJson('/documents');
     return (j.data || []).map((d) => ({ id: String(d.id), name: d.attributes?.name || String(d.id) }));
   }
 
   async layers(docId) {
-    const j = await getJson(`${this.base}/documents/${docId}/layers`);
+    const j = await this.getJson(`/documents/${docId}/layers`);
     return (j.data || []).map((l) => ({
       id: l.id,
       name: l.attributes?.name || l.id,
@@ -28,7 +43,7 @@ export class MimoLive {
   }
 
   async sources(docId) {
-    const j = await getJson(`${this.base}/documents/${docId}/sources`);
+    const j = await this.getJson(`/documents/${docId}/sources`);
     return (j.data || []).map((s) => ({
       id: s.id,
       name: s.attributes?.name || s.id,
@@ -40,7 +55,7 @@ export class MimoLive {
   /** Read current input values of a layer or source. */
   async getInputs({ documentId, kind, id }) {
     const coll = kind === 'source' ? 'sources' : 'layers';
-    const j = await getJson(`${this.base}/documents/${documentId}/${coll}/${id}`);
+    const j = await this.getJson(`/documents/${documentId}/${coll}/${id}`);
     return { name: j.data?.attributes?.name || id, values: j.data?.attributes?.['input-values'] || {} };
   }
 
@@ -48,17 +63,12 @@ export class MimoLive {
   async setInput({ documentId, kind, id, key, value }) {
     const coll = kind === 'source' ? 'sources' : 'layers';
     const update = encodeURIComponent(JSON.stringify({ 'input-values': { [key]: value ?? '' } }));
-    const url = `${this.base}/documents/${documentId}/${coll}/${id}?update=${update}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
-    if (!res.ok) {
-      const t = await res.text().catch(() => '');
-      throw new Error(`HTTP ${res.status} ${t.slice(0, 120)}`);
-    }
+    await request(`${this.base}/documents/${documentId}/${coll}/${id}?update=${update}`, { headers: this.headers });
   }
 }
 
-/** Scan local /24 subnets for mimoLive on `port`. Returns [{host, port, documents:[...]}]. */
-export async function discover(port = 8989, { timeoutMs = 600, concurrency = 64 } = {}) {
+/** Scan local /24 subnets for mimoLive on `port`. Returns [{host, port, documents, needsPassword}]. */
+export async function discover(port = 8989, { timeoutMs = 600, concurrency = 64, password } = {}) {
   const hosts = new Set(['127.0.0.1']);
   for (const addrs of Object.values(os.networkInterfaces())) {
     for (const a of addrs || []) {
@@ -73,19 +83,16 @@ export async function discover(port = 8989, { timeoutMs = 600, concurrency = 64 
   async function worker() {
     while (next < list.length) {
       const host = list[next++];
+      const ml = new MimoLive({ host, port, password });
       try {
-        const j = await getJson(`http://${host}:${port}/api/v1/documents`, timeoutMs);
-        found.push({
-          host,
-          port,
-          documents: (j.data || []).map((d) => ({ id: String(d.id), name: d.attributes?.name || String(d.id) })),
-        });
-      } catch {
-        /* not mimoLive */
+        const res = await request(`${ml.base}/documents`, { headers: ml.headers, timeoutMs });
+        const j = await res.json();
+        found.push({ host, port, needsPassword: false, documents: (j.data || []).map((d) => ({ id: String(d.id), name: d.attributes?.name || String(d.id) })) });
+      } catch (e) {
+        if (e instanceof MimoLiveAuthError) found.push({ host, port, needsPassword: true, documents: [] });
       }
     }
   }
   await Promise.all(Array.from({ length: concurrency }, worker));
-  // Collapse localhost duplicate of own LAN IP
   return found.sort((a, b) => a.host.localeCompare(b.host, undefined, { numeric: true }));
 }

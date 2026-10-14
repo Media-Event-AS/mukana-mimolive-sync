@@ -51,7 +51,7 @@ export const DEFAULTS = {
     databaseURL: 'https://pxc-mukana.firebaseio.com',
     origin: 'https://officehours.pxclabs.com',
   },
-  mimolive: { host: '127.0.0.1', port: 8989, documentId: '' },
+  mimolive: { host: '127.0.0.1', port: 8989, documentId: '', password: '' },
   // [{ field, kind: 'layer'|'source', id, key }]
   targets: [],
   autoStart: false,
@@ -91,5 +91,7 @@ export function publicConfig(cfg) {
   const c = structuredClone(cfg);
   c.mukana.hasRefreshToken = !!c.mukana.refreshToken;
   delete c.mukana.refreshToken;
+  c.mimolive.hasPassword = !!c.mimolive.password;
+  delete c.mimolive.password;
   return c;
 }

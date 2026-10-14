@@ -97,6 +97,8 @@
       <div><label for="mlHost">Host / IP</label><input id="mlHost" placeholder="192.168.1.20"></div>
       <div class="narrow"><label for="mlPort">Port</label><input id="mlPort" inputmode="numeric"></div>
     </div>
+    <label for="mlPassword">Password <span style="color:var(--muted)">(only if authentication is on in mimoLive)</span></label>
+    <div class="row"><input id="mlPassword" type="password" autocomplete="off" placeholder="None"><button id="btnClearPw" class="danger narrow" style="display:none">Remove</button></div>
     <div class="btns">
       <button id="btnDiscover">Scan network</button>
       <button id="btnDocs">Load documents</button>
@@ -104,7 +106,7 @@
     <div id="found" class="found"></div>
     <label for="mlDoc">Document</label>
     <select id="mlDoc"><option value="">— load documents first —</option></select>
-    <div class="hint">Requires “Allow Remote Control” to be enabled in mimoLive (Preferences → Remote Control).</div>
+    <div class="hint">Requires <b>Allow Remote Control Access</b> in mimoLive → Settings → Remote Control. <a href="/manual.html#mimolive" target="_blank" style="color:var(--accent)">How to</a></div>
     <div class="btns"><button class="primary" id="btnSaveMl">Save</button></div>
   </section>
 
@@ -152,7 +154,10 @@ function toast(msg, err) {
   clearTimeout(t._h); t._h = setTimeout(() => t.className = 'toast', 2600);
 }
 async function api(method, url, body) {
-  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const headers = { 'Content-Type': 'application/json' };
+  const pw = document.getElementById('mlPassword')?.value;
+  if (pw && url.startsWith('/api/mimolive/')) headers['X-ML-Password'] = pw;
+  const r = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
@@ -165,6 +170,8 @@ function fillConfig() {
   $('refreshToken').placeholder = cfg.mukana.hasRefreshToken ? 'Saved ✓ (paste to replace)' : 'Paste token';
   $('apiKey').value = cfg.mukana.apiKey; $('databaseURL').value = cfg.mukana.databaseURL; $('origin').value = cfg.mukana.origin;
   $('mlHost').value = cfg.mimolive.host || ''; $('mlPort').value = cfg.mimolive.port || 8989;
+  $('mlPassword').value = ''; $('mlPassword').placeholder = cfg.mimolive.hasPassword ? 'Saved ✓ (type to replace)' : 'None';
+  $('btnClearPw').style.display = cfg.mimolive.hasPassword ? '' : 'none';
 }
 
 async function loadDocs(selectId) {
@@ -276,7 +283,7 @@ $('btnDiscover').onclick = async () => {
     $('found').innerHTML = list.length ? '' : '<div class="hint">No mimoLive found on port ' + esc($('mlPort').value) + '.</div>';
     list.forEach(m => {
       const btn = document.createElement('button');
-      btn.innerHTML = `<b>${esc(m.host)}:${m.port}</b> — ${m.documents.map(d => esc(d.name)).join(', ') || 'no open documents'}`;
+      btn.innerHTML = `<b>${esc(m.host)}:${m.port}</b> — ${m.needsPassword ? '🔒 password required' : (m.documents.map(d => esc(d.name)).join(', ') || 'no open documents')}`;
       btn.onclick = async () => { $('mlHost').value = m.host; $('mlPort').value = m.port; await loadDocs(); };
       $('found').appendChild(btn);
     });
@@ -285,9 +292,10 @@ $('btnDiscover').onclick = async () => {
 };
 
 $('btnSaveMl').onclick = async () => {
-  await saveCfg({ mimolive: { host: $('mlHost').value.trim(), port: Number($('mlPort').value) || 8989, documentId: $('mlDoc').value } }, 'mimoLive saved');
+  await saveCfg({ mimolive: { host: $('mlHost').value.trim(), port: Number($('mlPort').value) || 8989, documentId: $('mlDoc').value, password: $('mlPassword').value } }, 'mimoLive saved');
   await loadElements(); renderMapping();
 };
+$('btnClearPw').onclick = () => saveCfg({ mimolive: { clearPassword: true } }, 'mimoLive password removed');
 $('btnAddRow').onclick = () => addRow({ field: FIELDS[0].id });
 $('btnReloadEls').onclick = async () => { const keep = collectMapping(); await loadElements(); $('mapBody').innerHTML = ''; (keep.length ? keep : [{}]).forEach(addRow); toast(`${elements.layers.length} layers, ${elements.sources.length} sources`); };
 $('btnSaveMap').onclick = () => saveCfg({ targets: collectMapping() }, 'Mapping saved');

@@ -58,6 +58,22 @@ assert.equal(d2.values.panelistsOnline, '2');
 const d3 = deriveFields(null, null, null, host);
 assert.equal(d3.values.name, '');
 assert.equal(d3.values.nextName, 'Siri', 'rundown available without live question');
+// mimoLive password auth (SHA-256 hex header)
+{
+  const { MimoLive, MimoLiveAuthError, discover } = await import('../src/mimolive.js');
+  const crypto = await import('node:crypto');
+  const want = crypto.createHash('sha256').update('s3cret').digest('hex');
+  const pwSrv = http.createServer((req, res) => {
+    if (req.headers['x-mimolive-password-sha256'] !== want) { res.statusCode = 401; return res.end('{}'); }
+    res.end(JSON.stringify({ data: [{ id: '1', attributes: { name: 'Doc' } }] }));
+  });
+  const pwPort = await listen(pwSrv);
+  assert.equal((await new MimoLive({ host: '127.0.0.1', port: pwPort, password: 's3cret' }).documents())[0].name, 'Doc');
+  await assert.rejects(new MimoLive({ host: '127.0.0.1', port: pwPort }).documents(), MimoLiveAuthError);
+  const found = await discover(pwPort);
+  assert.ok(found.some((f) => f.host === '127.0.0.1' && f.needsPassword));
+  pwSrv.close();
+}
 console.log('✓ unit');
 
 // ---------- mocks ----------
@@ -171,6 +187,13 @@ try {
   });
   assert.equal(cfg.json.mukana.refreshToken, undefined);
   assert.equal(cfg.json.mukana.hasRefreshToken, true);
+  const pwCfg = await api('POST', '/api/config', { mimolive: { password: 'pw1' } });
+  assert.equal(pwCfg.json.mimolive.password, undefined);
+  assert.equal(pwCfg.json.mimolive.hasPassword, true);
+  const keep = await api('POST', '/api/config', { mimolive: { password: '' } });
+  assert.equal(keep.json.mimolive.hasPassword, true, 'empty field keeps stored password');
+  const cleared = await api('POST', '/api/config', { mimolive: { clearPassword: true } });
+  assert.equal(cleared.json.mimolive.hasPassword, false);
 
   const st = await api('POST', '/api/start');
   assert.equal(st.status, 200, JSON.stringify(st.json));

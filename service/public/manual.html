@@ -47,6 +47,7 @@
   <a href="#prereq">Prerequisites</a>
   <a href="#install">Install</a>
   <a href="#run">Run</a>
+  <a href="#mimolive">Configure mimoLive</a>
   <a href="#setup">First-time setup</a>
   <a href="#token">Getting the Mukana token</a>
   <a href="#mapping">Mapping</a>
@@ -72,7 +73,7 @@
   <tr><td><b>Node.js 18.17+</b></td><td>Check with <code>node -v</code>. No npm packages needed.</td></tr>
   <tr><td><b>Git</b></td><td>To clone and update the code (or download the ZIP from GitHub).</td></tr>
   <tr><td><b>Mukana host account</b></td><td>Your Google account must have the <i>host</i> role on the event.</td></tr>
-  <tr><td><b>mimoLive Remote Control</b></td><td>mimoLive → Preferences → Remote Control → <i>Allow Remote Control</i>. API port 8989.</td></tr>
+  <tr><td><b>mimoLive Remote Control</b></td><td><i>Allow Remote Control Access</i> turned on. See <a href="#mimolive" style="color:var(--accent)">Configure mimoLive</a>.</td></tr>
   <tr><td><b>Network</b></td><td>Internet access (Firebase/Google) and LAN access to the mimoLive machine on TCP 8989. Operators reach this UI on TCP 8790.</td></tr>
 </table>
 <p>The service can run on the mimoLive machine or on any other Mac, Linux or Windows machine on the same LAN.</p>
@@ -104,10 +105,27 @@ npm start</code></pre>
 </table>
 <p>Example: <code>PORT=9000 TZ=Europe/Oslo npm start</code></p>
 
+<h2 id="mimolive">Configure mimoLive</h2>
+<p>The service talks to mimoLive's built-in HTTP API. It is off until remote control is allowed. Do this once on the mimoLive machine:</p>
+<ol>
+  <li>Open mimoLive, then choose <b>mimoLive → Settings…</b> from the menu bar (<b>Preferences…</b> in older versions).</li>
+  <li>Open the <b>Remote Control</b> tab.</li>
+  <li>Turn on <b>Allow Remote Control Access</b>.</li>
+  <li><b>Password (optional)</b>: if you set a password in that tab, enter the same password in the <b>mimoLive</b> section of this UI. If you don't need one, leave it empty in both places.</li>
+  <li>Keep the show document <b>open</b> in mimoLive. The API only lists open documents.</li>
+</ol>
+<h3>When the service runs on another machine</h3>
+<ul>
+  <li>The API listens on <b>port 8989</b>. If the macOS firewall is on for the mimoLive Mac, allow incoming connections for mimoLive: System Settings → Network → Firewall → Options.</li>
+  <li>Quick test from the service machine: open <code>http://&lt;mimolive-ip&gt;:8989/api/v1/documents</code> in a browser. You should get JSON listing the open documents. A login prompt or HTTP 401 means a password is set.</li>
+</ul>
+<div class="note warn">Some mimoLive versions have a reported bug where a one-character password appears on its own after a restart. If <b>Scan network</b> shows <b>🔒 password required</b> or the log says <i>mimoLive requires a password</i>, open the Remote Control tab and either clear the password or enter it here.</div>
+<p>Do not expose port 8989 to the internet. mimoLive recommends a tunnel (such as ngrok) if you ever need remote access from outside the LAN.</p>
+
 <h2 id="setup">First-time setup</h2>
 <ol>
   <li><b>1 · Mukana</b>: enter the <b>Event ID</b> (the part after <code>?event=</code> in the panelView URL, e.g. <code>ohtest</code>) and paste the <b>refresh token</b> (see below). Click <b>Save</b>.</li>
-  <li><b>2 · mimoLive</b>: click <b>Scan network</b> and pick your mimoLive machine, or type its IP. Click <b>Load documents</b>, choose the show document, then <b>Save</b>.</li>
+  <li><b>2 · mimoLive</b>: click <b>Scan network</b> and pick your mimoLive machine, or type its IP. Enter the password if mimoLive uses one. Click <b>Load documents</b>, choose the show document, then <b>Save</b>.</li>
   <li><b>3 · Mapping</b>: add one row per graphic element (see <a href="#mapping">Mapping</a>). Click <b>Save mapping</b>.</li>
   <li>Click <b>Start sync</b> in the header. The status should read <b>LIVE · waiting</b>, or <b>LIVE · question on air</b> when a question is being answered.</li>
 </ol>
@@ -189,7 +207,8 @@ launchctl unload ~/Library/LaunchAgents/no.mediaevent.mukana-sync.plist</code></
   <tr><td><code>Token refresh failed: INVALID_REFRESH_TOKEN</code> or <code>TOKEN_EXPIRED</code></td><td>The token was revoked (signed out of Google everywhere, password change). Get a new token.</td></tr>
   <tr><td>Stream error <code>HTTP 401 Permission denied</code></td><td>Wrong Event ID, or your account isn't host on this event.</td></tr>
   <tr><td>Status stays <b>LIVE · waiting</b> while a question is on air</td><td>Check the Event ID matches the panelView URL (<code>?event=…</code>).</td></tr>
-  <tr><td><b>Scan network</b> finds nothing / <i>No connection</i></td><td>Turn on <i>Allow Remote Control</i> in mimoLive, check the firewall on the mimoLive Mac, and check the port (8989).</td></tr>
+  <tr><td><b>Scan network</b> finds nothing / <i>No connection</i></td><td>Turn on <i>Allow Remote Control Access</i> in mimoLive (Settings → Remote Control), check the firewall on the mimoLive Mac, and check the port (8989). See <a href="#mimolive" style="color:var(--accent)">Configure mimoLive</a>.</td></tr>
+  <tr><td><i>mimoLive requires a password</i> / 🔒</td><td>Authentication is on in mimoLive. Enter the same password in the mimoLive section, or clear it in mimoLive.</td></tr>
   <tr><td>Values in the Live table but not in mimoLive</td><td>Run <b>Verify against mimoLive</b>. A ❌ with <i>input key does not exist</i> means the wrong input key is chosen for that layer.</td></tr>
   <tr><td>mimoLive document reopened, layers empty</td><td>Click <b>Resend all</b>. Layer IDs survive reopening, so the mapping stays valid.</td></tr>
   <tr><td><code>EADDRINUSE</code> on start</td><td>The service is already running, or something else uses port 8790. Stop it or use <code>PORT=…</code>.</td></tr>

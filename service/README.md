@@ -17,7 +17,7 @@ The full operator manual is built into the web UI (**Manual** link in the header
 | **Node.js 18.17 or newer** | Check with `node -v`. No npm packages are needed. |
 | **Git** | To clone and update the repo (or download the ZIP from GitHub). |
 | **Mukana account with the host role** | On the event you want to sync. Sign-in is via Google in a normal browser. |
-| **mimoLive** with *Allow Remote Control* on | mimoLive → Preferences → Remote Control. Default API port 8989. |
+| **mimoLive** with *Allow Remote Control Access* on | See [Configure mimoLive](#configure-mimolive). Default API port 8989. |
 | **Network** | The machine running the service must reach the internet (Firebase/Google) and the mimoLive machine on the LAN (TCP 8989). Operators reach the web UI on TCP 8790. |
 
 The service can run on the mimoLive machine itself or on any other machine (Mac, Linux, Windows) on the same LAN.
@@ -76,11 +76,26 @@ launchctl unload ~/Library/LaunchAgents/no.mediaevent.mukana-sync.plist
 
 Log file: `/tmp/mukana-sync.log`.
 
+## Configure mimoLive
+
+Do this once on the mimoLive machine:
+
+1. **mimoLive → Settings…** (*Preferences…* in older versions) → **Remote Control** tab.
+2. Turn on **Allow Remote Control Access**.
+3. Optional: set a password. If you do, enter the same password in the web UI's mimoLive section. The service sends it as the `X-MimoLive-Password-SHA256` header.
+4. Keep the show document open. The API only lists open documents.
+
+If the service runs on another machine, allow incoming connections for mimoLive in the macOS firewall (System Settings → Network → Firewall → Options). Test with `http://<mimolive-ip>:8989/api/v1/documents`, which should return JSON.
+
+Some mimoLive versions reportedly re-add a one-character password on their own after a restart. If the UI shows *password required*, clear or enter the password. Never expose port 8989 to the internet.
+
+Sources: [mimoLive Remote Control](https://mimolive.com/user-manual/remote-control-automation/remote-control-surfaces.md), [mimoLive HTTP API](https://mimolive.com/user-manual/remote-control-automation/http-api.md), [Boinx forum: password bug](https://forum.boinx.com/t/remote-control-adds-a-single-character-password-by-itself/18131).
+
 ## First-time setup (web UI)
 
 1. **Mukana** – enter the Event ID (e.g. `ohtest`) and a refresh token. To get the token: sign in to Mukana panelView in Chrome or Safari, open the DevTools console and run
    `copy(firebase.auth().currentUser.refreshToken)`. The console prints `undefined`; the token is on the clipboard. Paste it and **Save**.
-2. **mimoLive** – **Scan network** (finds mimoLive on port 8989 on the local /24 subnets) or type the IP, **Load documents**, pick the document, **Save**.
+2. **mimoLive** – **Scan network** (finds mimoLive on port 8989 on the local /24 subnets) or type the IP, enter the password if mimoLive uses one, **Load documents**, pick the document, **Save**.
 3. **Mapping** – one row per output: Mukana field → mimoLive layer/source → input key. **Save mapping**.
 4. **Start sync**. Check the *Live* panel, and use **Verify against mimoLive** to read the values back from mimoLive.
 

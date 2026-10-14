@@ -71,6 +71,9 @@ p{color:#ff5c5c;font-size:13px;min-height:1em;margin:10px 0 0}</style></head><bo
 const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pw').value})});
 if(r.ok)location.href='/';else document.getElementById('e').textContent='Wrong password';};</script></body></html>`;
 
+// UI may send a just-typed (unsaved) mimoLive password in a header; otherwise use the stored one.
+const mlPassword = (req) => req.headers['x-ml-password'] || config.mimolive.password || '';
+
 const routes = {
   'GET /api/config': () => publicConfig(config),
   'GET /api/fields': () => FIELDS,
@@ -80,6 +83,9 @@ const routes = {
     const patch = await readBody(req);
     if (patch.mukana && !patch.mukana.refreshToken) delete patch.mukana.refreshToken; // keep stored token
     if (patch.mukana?.refreshToken) patch.mukana.refreshToken = patch.mukana.refreshToken.trim();
+    if (patch.mimolive && 'password' in patch.mimolive && patch.mimolive.password === undefined) delete patch.mimolive.password;
+    if (patch.mimolive && patch.mimolive.password === '') delete patch.mimolive.password; // empty field = keep stored
+    if (patch.mimolive?.clearPassword) { patch.mimolive.password = ''; delete patch.mimolive.clearPassword; }
     const before = JSON.stringify(config.mukana);
     config = updateConfig(config, patch);
     if (Array.isArray(patch.targets)) config.targets = patch.targets;
@@ -131,11 +137,11 @@ const routes = {
       })
     );
   },
-  'GET /api/mimolive/discover': async (req, url) => discover(Number(url.searchParams.get('port') || 8989)),
+  'GET /api/mimolive/discover': async (req, url) => discover(Number(url.searchParams.get('port') || 8989), { password: mlPassword(req) }),
   'GET /api/mimolive/documents': async (req, url) =>
-    new MimoLive({ host: url.searchParams.get('host'), port: url.searchParams.get('port') || 8989 }).documents(),
+    new MimoLive({ host: url.searchParams.get('host'), port: url.searchParams.get('port') || 8989, password: mlPassword(req) }).documents(),
   'GET /api/mimolive/elements': async (req, url) => {
-    const ml = new MimoLive({ host: url.searchParams.get('host'), port: url.searchParams.get('port') || 8989 });
+    const ml = new MimoLive({ host: url.searchParams.get('host'), port: url.searchParams.get('port') || 8989, password: mlPassword(req) });
     const doc = url.searchParams.get('doc');
     const [layers, sources] = await Promise.all([ml.layers(doc), ml.sources(doc).catch(() => [])]);
     return { layers, sources };
