@@ -74,6 +74,16 @@ assert.equal(d3.values.nextName, 'Siri', 'rundown available without live questio
   assert.ok(found.some((f) => f.host === '127.0.0.1' && f.needsPassword));
   pwSrv.close();
 }
+// autostart plist
+{
+  const { buildPlist, LABEL } = await import('../src/autostart.js');
+  const x = buildPlist({ node: '/opt/homebrew/bin/node', server: '/a b/src/server.js', cwd: '/a b', env: { PORT: '8790', UI_PASSWORD: 'p<&>' }, log: '/tmp/l.log' });
+  assert.match(x, new RegExp(`<string>${LABEL}</string>`));
+  assert.match(x, /<string>\/a b\/src\/server\.js<\/string>/);
+  assert.match(x, /<key>UI_PASSWORD<\/key><string>p&lt;&amp;&gt;<\/string>/);
+  assert.match(x, /<key>MMS_LAUNCHD<\/key><string>1<\/string>/);
+  assert.match(x, /<key>KeepAlive<\/key><true\/>/);
+}
 console.log('✓ unit');
 
 // ---------- mocks ----------
@@ -152,6 +162,11 @@ const waitFor = async (fn, label, ms = 4000) => {
 
 try {
   await waitFor(async () => (await fetch(`http://127.0.0.1:${appPort}/api/status`).catch(() => null))?.ok, 'server up');
+
+  // autostart API (non-macOS in CI → unsupported, enable refused)
+  const as = await api('GET', '/api/autostart');
+  assert.equal(as.json.supported, process.platform === 'darwin');
+  if (process.platform !== 'darwin') assert.equal((await api('POST', '/api/autostart/enable', {})).status, 400);
 
   // UI served
   const html = await (await fetch(`http://127.0.0.1:${appPort}/`)).text();

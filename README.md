@@ -63,6 +63,11 @@ If sync was running when the service stopped, it starts again automatically on t
 
 ### Run in the background on macOS (launchd)
 
+Easiest: in the web UI, section **5 · Service**, click **Start at login** (or **Start at login + move to background now**). This installs a per-user launchd agent with the current port, time zone and UI password. The log is in `~/Library/Logs/mukana-mimolive-sync.log`. If you move the folder or upgrade Node, turn it off and on again.
+
+Manual alternative:
+
+
 Replace `/path/to/mukana-mimolive-sync` with your folder and check the node path (`which node`) in `launchd/no.mediaevent.mukana-sync.plist`, then:
 
 ```bash

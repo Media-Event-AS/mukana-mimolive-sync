@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import { loadConfig, saveConfig, updateConfig, publicConfig, FIELDS } from './config.js';
 import { SyncEngine } from './sync.js';
 import { MimoLive, discover } from './mimolive.js';
+import * as autostart from './autostart.js';
 
 const PUBLIC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const PORT = Number(process.env.PORT || 8790);
@@ -123,6 +124,22 @@ const routes = {
     await engine.clear();
     return engine.status();
   },
+
+  'GET /api/autostart': () => autostart.status(),
+  'POST /api/autostart/enable': async (req) => {
+    const { now } = await readBody(req);
+    const st = autostart.enable();
+    if (now && !st.runningUnderLaunchd) {
+      // Respond first, then exit and let launchd start the service in the background.
+      setTimeout(() => {
+        engine.stop();
+        autostart.handoverToLaunchd((cb) => server.close(cb));
+      }, 300);
+      return { ...st, handover: true };
+    }
+    return st;
+  },
+  'POST /api/autostart/disable': async () => autostart.disable(),
 
   // Read back every mapped target from mimoLive and compare with what the engine expects.
   'GET /api/mimolive/verify': async () => {

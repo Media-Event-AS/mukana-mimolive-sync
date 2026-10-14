@@ -196,13 +196,24 @@ When no question is live, Question and Panel fields are cleared; Next Up and Cou
 <div class="note">Firebase bills for downloaded data and concurrent connections, and the Firebase project belongs to Mukana, not to us. The load is about the same as one extra panelist with panelView open, and lower in practice, since panelView also streams chat, likes and DMs.</div>
 
 <h2 id="background">Run in the background (macOS)</h2>
-<p>To start the service at login and restart it if it stops, use the launchd file in <code>launchd/</code>. Edit the node path (<code>which node</code>) and the folder paths first, then:</p>
+<p>The easiest way is section <b>5 · Service</b> in the control panel:</p>
+<table>
+  <tr><th>Button</th><th>What it does</th></tr>
+  <tr><td><b>Start at login</b></td><td>Installs a launchd agent. From the next login the service starts by itself, and it restarts if it stops. The current port, time zone and UI password are kept.</td></tr>
+  <tr><td><b>Start at login + move to background now</b></td><td>Same, and hands over right away: the terminal process stops and launchd runs the service. The page reconnects after a few seconds and you can close the terminal window.</td></tr>
+  <tr><td><b>Turn off start at login</b></td><td>Removes the agent. If the service runs in the background, it also stops; start it again with <code>npm start</code>.</td></tr>
+</table>
+<p>Buttons that stop the service ask you to click twice. The log is in <code>~/Library/Logs/mukana-mimolive-sync.log</code>.</p>
+<div class="note">If you move the project folder or update Node.js (for example <code>brew upgrade node</code>), click <b>Turn off start at login</b> and then <b>Start at login</b> again so the agent gets the new paths.</div>
+<h3>Manual alternative</h3>
+<p>You can also install the launchd file in <code>launchd/</code> yourself. Replace <code>/path/to/mukana-mimolive-sync</code> with your folder and check the node path (<code>which node</code>), then:</p>
 <pre><code>cp launchd/no.mediaevent.mukana-sync.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/no.mediaevent.mukana-sync.plist
 
 # stop and remove
 launchctl unload ~/Library/LaunchAgents/no.mediaevent.mukana-sync.plist</code></pre>
-<p>Log file: <code>/tmp/mukana-sync.log</code>.</p>
+<p>Log file for the manual alternative: <code>/tmp/mukana-sync.log</code>.</p>
+<p><b>Linux / Windows:</b> run <code>npm start</code> under systemd, pm2 or NSSM. There is no one-click option for those systems.</p>
 
 <h2 id="trouble">Troubleshooting</h2>
 <table>

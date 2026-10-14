@@ -145,6 +145,13 @@
     <label>Log</label>
     <div class="log" id="log"></div>
   </section>
+
+  <section class="wide">
+    <h2>5 · Service</h2>
+    <div id="asStatus" class="hint" style="margin-top:0">Checking…</div>
+    <div class="btns" id="asBtns"></div>
+    <div class="hint" id="asHint"></div>
+  </section>
 </main>
 <footer id="about">
   <span>Mukana → mimoLive Sync <b id="ver"></b></span>
@@ -325,6 +332,47 @@ $('btnVerify').onclick = async () => {
 };
 $('btnClear').onclick =async () => { await api('POST', '/api/clear'); toast('mimoLive cleared'); };
 
+async function renderAutostart() {
+  let st; try { st = await api('GET', '/api/autostart'); } catch { return; }
+  const btns = $('asBtns'); btns.innerHTML = '';
+  const b = (label, cls, fn) => { const x = document.createElement('button'); x.textContent = label; if (cls) x.className = cls; x.onclick = fn; btns.appendChild(x); };
+  if (!st.supported) {
+    $('asStatus').innerHTML = `Autostart from the UI is available on macOS only (this machine: <code>${esc(st.platform)}</code>). See the manual for running it as a service on other systems.`;
+    return;
+  }
+  const mode = st.runningUnderLaunchd ? 'Running in the background (launchd)' : 'Running in a terminal window';
+  $('asStatus').innerHTML = `<b>${mode}</b> · Start at login: <b style="color:${st.installed ? 'var(--ok)' : 'var(--muted)'}">${st.installed ? 'On' : 'Off'}</b>`;
+  $('asHint').innerHTML = st.installed ? `Agent: <code>${esc(st.plistPath)}</code> · Log: <code>${esc(st.logPath)}</code>` : 'Starts the service when you log in to this Mac and restarts it if it stops. The current port, time zone and UI password are kept.';
+  if (!st.installed) {
+    b('Start at login', 'primary', async () => { await api('POST', '/api/autostart/enable', {}); toast('Start at login enabled'); renderAutostart(); });
+    if (!st.runningUnderLaunchd) b('Start at login + move to background now', '', async () => {
+      if (!confirmInline('The terminal window will stop the service and it continues in the background. Click again to confirm.', 'handover')) return;
+      await api('POST', '/api/autostart/enable', { now: true });
+      $('asStatus').innerHTML = '<b>Moving to background…</b> The page reconnects in a few seconds. You can close the terminal window.';
+      setTimeout(() => location.reload(), 5000);
+    });
+  } else {
+    if (!st.runningUnderLaunchd) b('Move to background now', '', async () => {
+      if (!confirmInline('The terminal window will stop the service and it continues in the background. Click again to confirm.', 'handover2')) return;
+      await api('POST', '/api/autostart/enable', { now: true });
+      $('asStatus').innerHTML = '<b>Moving to background…</b> The page reconnects in a few seconds.';
+      setTimeout(() => location.reload(), 5000);
+    });
+    b('Turn off start at login', 'danger', async () => {
+      if (st.runningUnderLaunchd && !confirmInline('This also stops the running service. Start it again with npm start. Click again to confirm.', 'disable')) return;
+      const r = await api('POST', '/api/autostart/disable');
+      if (r.stopping) $('asStatus').innerHTML = '<b>Service stopped.</b> Start it again from a terminal with <code>npm start</code>.';
+      else { toast('Start at login turned off'); renderAutostart(); }
+    });
+  }
+}
+// Two-click confirm without browser dialogs
+const pendingConfirm = {};
+function confirmInline(msg, key) {
+  if (pendingConfirm[key] && Date.now() - pendingConfirm[key] < 6000) { delete pendingConfirm[key]; return true; }
+  pendingConfirm[key] = Date.now(); toast(msg); return false;
+}
+
 (async () => {
   FIELDS = await api('GET', '/api/fields');
   cfg = await api('GET', '/api/config');
@@ -335,6 +383,7 @@ $('btnClear').onclick =async () => { await api('POST', '/api/clear'); toast('mim
   await loadElements();
   renderMapping();
   poll();
+  renderAutostart();
 })();
 </script>
 </body>
