@@ -140,6 +140,10 @@ try {
   // UI served
   const html = await (await fetch(`http://127.0.0.1:${appPort}/`)).text();
   assert.match(html, /Mukana → mimoLive Sync/);
+  assert.match(html, /manual\.html/);
+  const manual = await fetch(`http://127.0.0.1:${appPort}/manual.html`);
+  assert.equal(manual.status, 200);
+  assert.match(await manual.text(), /Troubleshooting/);
 
   // mimoLive endpoints via proxy
   const docs = await api('GET', `/api/mimolive/documents?host=127.0.0.1&port=${mimoPort}`);

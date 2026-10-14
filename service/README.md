@@ -1,68 +1,127 @@
-# Mukana → mimoLive Sync (v3, no browser)
+# Mukana → mimoLive Sync (v3)
 
-Headless Node service that reads the live question directly from Mukana's Firebase Realtime Database and writes it to mimoLive layers via the HTTP API. No Chrome, no extension, no DOM scraping.
+Headless Node service that reads the live question from Mukana's Firebase Realtime Database and writes it to mimoLive layers via mimoLive's HTTP API. No Chrome, no browser extension, no DOM scraping.
 
 ```
-Mukana (Firebase RTDB) ──SSE──▶ this service ──HTTP──▶ mimoLive :8989
-                                     ▲
-                              web UI :8790 (LAN)
+Mukana (Firebase RTDB) ──streaming──▶ this service ──HTTP──▶ mimoLive :8989
+                                          ▲
+                                   web UI :8790 (LAN)
 ```
 
-## Requirements
-- Node.js 18.17+ (no npm dependencies)
-- A Mukana user with the **host** role on the event
-- mimoLive with *Allow Remote Control* enabled (Preferences → Remote Control)
-- The machine must reach the mimoLive machine on the LAN and the internet (Firebase)
+The full operator manual is built into the web UI (**Manual** link in the header, or `http://<host>:8790/manual.html`).
+
+## Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| **Node.js 18.17 or newer** | Check with `node -v`. No npm packages are needed. |
+| **Git** | To clone and update the repo (or download the ZIP from GitHub). |
+| **Mukana account with the host role** | On the event you want to sync. Sign-in is via Google in a normal browser. |
+| **mimoLive** with *Allow Remote Control* on | mimoLive → Preferences → Remote Control. Default API port 8989. |
+| **Network** | The machine running the service must reach the internet (Firebase/Google) and the mimoLive machine on the LAN (TCP 8989). Operators reach the web UI on TCP 8790. |
+
+The service can run on the mimoLive machine itself or on any other machine (Mac, Linux, Windows) on the same LAN.
+
+## Install
+
+```bash
+# 1. Node.js (macOS, Homebrew) – or install the LTS package from https://nodejs.org
+brew install node
+
+# 2. Get the code
+git clone https://github.com/Media-Event-AS/mukana-mimolive-sync-v2.git
+cd mukana-mimolive-sync-v2
+git checkout node-service
+
+# 3. (Optional) run the test suite
+cd service
+npm test
+```
+
+There is no `npm install` step: the service has zero dependencies.
+
+**Update** to the latest version: `git pull` in the repo folder, then restart the service.
 
 ## Run
+
 ```bash
-cd service
+cd mukana-mimolive-sync-v2/service
 npm start
-# open http://<machine-ip>:8790
 ```
-| Env | Default | |
+
+Open `http://localhost:8790` on the same machine, or `http://<machine-ip>:8790` from another machine on the LAN. Stop with **Ctrl+C**.
+
+| Env variable | Default | Purpose |
 |---|---|---|
-| `PORT` | 8790 | Web UI port |
-| `HOST` | 0.0.0.0 | Bind address |
-| `UI_PASSWORD` | – | Optional password for the web UI (login page + cookie; Basic auth accepted for scripts) |
-| `DATA_DIR` | `service/data` | Where `config.json` is stored (contains the refresh token, file mode 600) |
-| `TZ` | system | Time zone for the HH:MM fields |
+| `PORT` | `8790` | Web UI port |
+| `HOST` | `0.0.0.0` | Bind address (`127.0.0.1` = this machine only) |
+| `UI_PASSWORD` | – | Optional password for the web UI. Off by default. |
+| `DATA_DIR` | `service/data` | Where `config.json` is stored (includes the refresh token, file mode 600) |
+| `TZ` | system | Time zone for the HH:MM fields, e.g. `Europe/Oslo` |
 
-## Setup in the web UI
-1. **Mukana:** Event ID (e.g. `ohtest`) + refresh token.
-   Get the token: sign in to Mukana panelView in Chrome/Safari, open the DevTools console and run
-   `copy(firebase.auth().currentUser.refreshToken)` (prints `undefined`, the token is on the clipboard) and paste it. The token renews automatically every hour.
-2. **mimoLive:** *Scan network* scans local /24 subnets on port 8989, or enter the IP. Pick the document.
-3. **Mapping:** Mukana field → layer/source → input key. Layers and input keys are loaded from mimoLive.
-4. **Start sync.** Status, current values and log appear under *Live*. *Verify against mimoLive* reads values back from every mapped layer. The service auto-starts after a restart if it was running.
+Example: `PORT=9000 TZ=Europe/Oslo npm start`
 
-## Fields
-| Group | Field | RTDB source |
-|---|---|---|
-| Question | Name, Question, Location, Tag, Votes | `qs_liveQ/{event}` (`n`, `q`, `l`, `tag`, `v` – votes stored negated, shown positive) |
-| | Country code / flag emoji | `loc_cc` |
-| | URL (QR) | first URL in `q` |
-| | Host notes | `comments_host_output/{event}/{key}/hostNotes` |
-| | Source (raw / label) | `…/source`: `mukana`/`lite` Mobile, `full` Web, `form` QR form, `panel` Panel, `chat`, `facebook`, `youtube`, `twitter` |
-| | Name / location phonetics | `…/namePho`, `…/locPho` |
-| | Asked at, Answering since | `…/ts_created`, `…/ts_answered` |
-| | Done reading | `qs_liveQ/{event}/rd` |
-| Panel | Panelist queue, Active panelist | `panel_hands/{event}/{key}/array[]` (`st` = q/a/c) |
-| | Panelists online | `panel_onlinelist/{event}` |
-| Rundown | Questions waiting, On deck name/question | `comments_host_output/{event}` sorted by `orderID` |
+If sync was running when the service stopped, it starts again automatically on the next launch.
 
-When no question is live, all question/panel fields are cleared; rundown fields stay updated. Only changed values are sent.
+### Run in the background on macOS (launchd)
 
-## Run as a service (macOS launchd)
-Edit paths in `launchd/no.mediaevent.mukana-sync.plist`, then:
+Edit the paths (and `which node`) in `launchd/no.mediaevent.mukana-sync.plist`, then:
+
 ```bash
 cp launchd/no.mediaevent.mukana-sync.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/no.mediaevent.mukana-sync.plist
+# stop / remove
+launchctl unload ~/Library/LaunchAgents/no.mediaevent.mukana-sync.plist
 ```
 
+Log file: `/tmp/mukana-sync.log`.
+
+## First-time setup (web UI)
+
+1. **Mukana** – enter the Event ID (e.g. `ohtest`) and a refresh token. To get the token: sign in to Mukana panelView in Chrome or Safari, open the DevTools console and run
+   `copy(firebase.auth().currentUser.refreshToken)`. The console prints `undefined`; the token is on the clipboard. Paste it and **Save**.
+2. **mimoLive** – **Scan network** (finds mimoLive on port 8989 on the local /24 subnets) or type the IP, **Load documents**, pick the document, **Save**.
+3. **Mapping** – one row per output: Mukana field → mimoLive layer/source → input key. **Save mapping**.
+4. **Start sync**. Check the *Live* panel, and use **Verify against mimoLive** to read the values back from mimoLive.
+
+## Fields
+
+| Group | Field | Mukana source |
+|---|---|---|
+| Question | Name, Question (URL removed / original), Location, Tag, Votes | `qs_liveQ/{event}` (`n`, `q`, `l`, `tag`, `v`; votes are stored negated and shown positive) |
+| | Country code / flag emoji | `loc_cc` |
+| | URL in question (QR) | First URL found in `q` |
+| | Host notes | `comments_host_output/{event}/{key}/hostNotes` |
+| | Source (raw / label) | `…/source`: `mukana`/`lite` Mobile, `full` Web, `form` QR form, `panel` Panel, `chat`, `facebook`, `youtube`, `twitter` |
+| | Name / location phonetics | `…/namePho`, `…/locPho` |
+| | Asked at, Answering since | `…/ts_created`, `…/ts_answered` (HH:MM) |
+| | Done reading | `qs_liveQ/{event}/rd` |
+| Panel | Panelist queue, Active panelist | `panel_hands/{event}/{key}/array[]` (`st` = q/a/c) |
+| | Panelists online | `panel_onlinelist/{event}` |
+| Next Up | Name, location, tag, question (URL removed / original) | First non-live item in `comments_host_output/{event}`, sorted by `orderID` |
+| Counts | Voting Qs, On Deck, Answered | Number of items in `comments_source`, `comments_host_output`, `comments_answered` (same as the panelView tabs) |
+
+When no question is live, Question and Panel fields are cleared; Next Up and Counts stay updated. Only changed values are sent to mimoLive.
+
+## How it connects (and what it costs)
+
+Nothing is polled.
+
+| Link | Mechanism | Traffic |
+|---|---|---|
+| Mukana → service | 6 Firebase RTDB REST streams (Server-Sent Events) on `qs_liveQ`, `panel_hands`, `panel_onlinelist`, `comments_host_output`, `comments_source`, `comments_answered`. One full snapshot on connect, then only changes are pushed. | Keep-alive about every 30 s. Silence when nothing changes. |
+| Auth | Firebase refresh token → ID token via `securetoken.googleapis.com` once per hour. Streams reconnect and re-download their snapshot. | A few hundred KB per hour at most, even with hundreds of questions. |
+| Service → mimoLive | HTTP GET with `?update=` to the mimoLive API, only when a mapped value changes. | LAN only. |
+| Web UI → service | Status poll every second while the UI is open. | LAN only. |
+
+Firebase bills for downloaded data and concurrent connections, and the Firebase project (`pxc-mukana`) belongs to Mukana, not to us. The load is about the same as one extra panelist with panelView open, and lower in practice, since panelView also streams chat, likes and DMs. Only `comments_source` and `comments_answered` grow with the number of questions. If an event ever has thousands of questions, those two can be switched to periodic count-only (`?shallow=true`) requests.
+
 ## Test
-`npm test` – unit tests + end-to-end against mock Firebase and mock mimoLive.
+
+`npm test` – unit tests, end-to-end against mock Firebase and mock mimoLive, and UI auth.
 
 ## Limitations
+
 - Mukana's data structure is undocumented (mapped from panelView v260113a). If Mukana changes its paths, update `src/sync.js`.
-- Firebase config (API key, database URL, origin) can be changed under *Advanced* for another Mukana instance.
+- Firebase settings (API key, database URL, origin) can be changed under *Advanced* in the web UI for another Mukana instance.
+- The refresh token is tied to your Google sign-in. Signing out everywhere or revoking access means pasting a new token.

@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual · Mukana → mimoLive Sync</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --line: #262b36; --text: #e6e8ec; --muted: #8b93a3;
+    --accent: #3d8bfd; --ok: #2ecc71; --warn: #f1c40f; --err: #ff5c5c;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-size: 15px; line-height: 1.6; }
+  header { display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 2; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header a { color: var(--accent); text-decoration: none; font-size: 14px; margin-left: auto; }
+  .wrap { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; max-width: 1100px; margin: 0 auto; padding: 24px 20px 80px; }
+  nav { position: sticky; top: 70px; align-self: start; font-size: 13px; }
+  nav a { display: block; color: var(--muted); text-decoration: none; padding: 4px 0; }
+  nav a:hover { color: var(--text); }
+  @media (max-width: 760px) { .wrap { grid-template-columns: 1fr; padding: 16px; } nav { position: static; columns: 2; } }
+  h2 { font-size: 20px; margin: 40px 0 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+  h2:first-of-type { border-top: 0; margin-top: 0; }
+  h3 { font-size: 15px; margin: 22px 0 6px; color: var(--accent); }
+  p, li { color: #cfd3da; }
+  code { background: var(--panel); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  pre { background: var(--panel); border: 1px solid var(--line); padding: 10px 12px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+  pre code { background: none; border: 0; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .note { background: rgba(61,139,253,.08); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 6px; margin: 12px 0; }
+  .warn { background: rgba(241,196,15,.08); border-left-color: var(--warn); }
+  ol li, ul li { margin: 4px 0; }
+  .diagram { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mukana → mimoLive Sync · Manual</h1>
+  <a href="/">← Back to control panel</a>
+</header>
+<div class="wrap">
+<nav>
+  <a href="#overview">Overview</a>
+  <a href="#prereq">Prerequisites</a>
+  <a href="#install">Install</a>
+  <a href="#run">Run</a>
+  <a href="#setup">First-time setup</a>
+  <a href="#token">Getting the Mukana token</a>
+  <a href="#mapping">Mapping</a>
+  <a href="#live">During the show</a>
+  <a href="#fields">Field reference</a>
+  <a href="#traffic">How it connects</a>
+  <a href="#background">Run in background</a>
+  <a href="#trouble">Troubleshooting</a>
+  <a href="#limits">Limitations</a>
+</nav>
+<main>
+
+<h2 id="overview">Overview</h2>
+<p>The service reads the live question, panelist queue, Next Up question and counters straight from Mukana's Firebase database and writes them to text layers and sources in mimoLive. It replaces the old Chrome extension: no browser has to stay open, and nothing depends on Mukana's page layout.</p>
+<pre class="diagram">Mukana (Firebase)  ──streaming──▶  Sync service  ──HTTP──▶  mimoLive :8989
+                                       ▲
+                               this web UI :8790</pre>
+<p>When the host clicks <b>Answer</b> in Mukana panelView, mimoLive updates within a fraction of a second. When the question is done or cancelled, the mapped layers are cleared.</p>
+
+<h2 id="prereq">Prerequisites</h2>
+<table>
+  <tr><th>Requirement</th><th>Notes</th></tr>
+  <tr><td><b>Node.js 18.17+</b></td><td>Check with <code>node -v</code>. No npm packages needed.</td></tr>
+  <tr><td><b>Git</b></td><td>To clone and update the code (or download the ZIP from GitHub).</td></tr>
+  <tr><td><b>Mukana host account</b></td><td>Your Google account must have the <i>host</i> role on the event.</td></tr>
+  <tr><td><b>mimoLive Remote Control</b></td><td>mimoLive → Preferences → Remote Control → <i>Allow Remote Control</i>. API port 8989.</td></tr>
+  <tr><td><b>Network</b></td><td>Internet access (Firebase/Google) and LAN access to the mimoLive machine on TCP 8989. Operators reach this UI on TCP 8790.</td></tr>
+</table>
+<p>The service can run on the mimoLive machine or on any other Mac, Linux or Windows machine on the same LAN.</p>
+
+<h2 id="install">Install</h2>
+<pre><code># Node.js on macOS (or install the LTS package from nodejs.org)
+brew install node
+
+# Get the code
+git clone https://github.com/Media-Event-AS/mukana-mimolive-sync-v2.git
+cd mukana-mimolive-sync-v2
+git checkout node-service
+
+# Optional: run the tests
+cd service && npm test</code></pre>
+<p>There is no <code>npm install</code> step. To update later: <code>git pull</code> in the repo folder, then restart the service.</p>
+
+<h2 id="run">Run</h2>
+<pre><code>cd mukana-mimolive-sync-v2/service
+npm start</code></pre>
+<p>Open <code>http://localhost:8790</code>, or <code>http://&lt;machine-ip&gt;:8790</code> from another machine on the LAN. Stop with <b>Ctrl+C</b>. If sync was running when the service stopped, it starts again automatically on the next launch.</p>
+<table>
+  <tr><th>Env variable</th><th>Default</th><th>Purpose</th></tr>
+  <tr><td><code>PORT</code></td><td>8790</td><td>Web UI port</td></tr>
+  <tr><td><code>HOST</code></td><td>0.0.0.0</td><td>Bind address. <code>127.0.0.1</code> = this machine only.</td></tr>
+  <tr><td><code>UI_PASSWORD</code></td><td>–</td><td>Optional password for this UI. Off by default.</td></tr>
+  <tr><td><code>DATA_DIR</code></td><td>service/data</td><td>Where settings and the token are stored.</td></tr>
+  <tr><td><code>TZ</code></td><td>system</td><td>Time zone for HH:MM fields, e.g. <code>Europe/Oslo</code>.</td></tr>
+</table>
+<p>Example: <code>PORT=9000 TZ=Europe/Oslo npm start</code></p>
+
+<h2 id="setup">First-time setup</h2>
+<ol>
+  <li><b>1 · Mukana</b>: enter the <b>Event ID</b> (the part after <code>?event=</code> in the panelView URL, e.g. <code>ohtest</code>) and paste the <b>refresh token</b> (see below). Click <b>Save</b>.</li>
+  <li><b>2 · mimoLive</b>: click <b>Scan network</b> and pick your mimoLive machine, or type its IP. Click <b>Load documents</b>, choose the show document, then <b>Save</b>.</li>
+  <li><b>3 · Mapping</b>: add one row per graphic element (see <a href="#mapping">Mapping</a>). Click <b>Save mapping</b>.</li>
+  <li>Click <b>Start sync</b> in the header. The status should read <b>LIVE · waiting</b>, or <b>LIVE · question on air</b> when a question is being answered.</li>
+</ol>
+<p>Settings are saved on this machine and survive restarts.</p>
+
+<h2 id="token">Getting the Mukana token</h2>
+<p>The service signs in to Mukana as you, using a long-lived <i>refresh token</i> from a normal browser session. You only do this once. The token renews itself every hour.</p>
+<ol>
+  <li>Open Mukana panelView in <b>Chrome or Safari</b> and sign in with Google as host.</li>
+  <li>Open the developer console: Chrome <code>⌥⌘J</code>, Safari <code>⌥⌘C</code> (enable <i>Show features for web developers</i> in Safari settings first).</li>
+  <li>Run: <pre><code>copy(firebase.auth().currentUser.refreshToken)</code></pre> The console prints <code>undefined</code>. That's expected: the token is now on your clipboard.</li>
+  <li>Paste it into <b>Refresh token</b> and click <b>Save</b>. The field then shows <i>Saved ✓</i>.</li>
+</ol>
+<div class="note">The token is stored only in <code>service/data/config.json</code> on this machine and is never shown in the UI. Treat it like a password.</div>
+<div class="note warn">Google blocks sign-in inside embedded browsers (such as an app's built-in browser pane). Use a regular browser to get the token.</div>
+
+<h2 id="mapping">Mapping</h2>
+<p>Each row sends one Mukana field to one input of one mimoLive layer or source.</p>
+<table>
+  <tr><th>Column</th><th>What to choose</th></tr>
+  <tr><td>Mukana field</td><td>The data, e.g. <i>Name</i>, <i>Question (URL removed)</i>, <i>Next up: name</i>, <i>Voting Qs (count)</i>.</td></tr>
+  <tr><td>mimoLive layer / source</td><td>Loaded from the selected document. Layers and sources are listed by name.</td></tr>
+  <tr><td>Input key</td><td>The input on that layer. Text layers normally use <code>tvGroup_Content__Text_TypeMultiline</code>, QR sources <code>tvGroup_Content__QR_Content</code>, note layers <code>tvGroup_Note__Note_TypeMultiline</code>.</td></tr>
+</table>
+<p>One field can feed several layers (add more rows). If you add layers in mimoLive, click <b>Reload layers</b>. A green dot ● in the Live panel marks fields that are mapped.</p>
+<h3>Typical setup</h3>
+<table>
+  <tr><th>Field</th><th>Layer</th></tr>
+  <tr><td>Name</td><td>Lower third – title</td></tr>
+  <tr><td>Location</td><td>Lower third – subtitle</td></tr>
+  <tr><td>Question (URL removed)</td><td>Question text layer</td></tr>
+  <tr><td>Tag</td><td>Tag / category layer</td></tr>
+  <tr><td>URL in question (QR)</td><td>QR code source</td></tr>
+  <tr><td>Panelist queue (queued)</td><td>Panel note layer</td></tr>
+</table>
+
+<h2 id="live">During the show</h2>
+<table>
+  <tr><th>Control</th><th>Use</th></tr>
+  <tr><td>Status pill</td><td><b>LIVE · waiting</b>: connected, no question on air. <b>LIVE · question on air</b>: data is being sent. <b>Connecting…</b>: reconnecting (normal after network blips and every hour). <b>Error</b>: see the log.</td></tr>
+  <tr><td>Live table</td><td>The current value of every field, as it is sent to mimoLive.</td></tr>
+  <tr><td><b>Verify against mimoLive</b></td><td>Reads every mapped input back from mimoLive and shows ✅ or ❌. Use it during rehearsal.</td></tr>
+  <tr><td><b>Resend all</b></td><td>Pushes all values again, e.g. after reopening the mimoLive document.</td></tr>
+  <tr><td><b>Clear mimoLive</b></td><td>Empties all mapped inputs now. The next change in Mukana fills them again.</td></tr>
+  <tr><td><b>Stop</b></td><td>Stops sync and disconnects from Mukana. mimoLive keeps the last values.</td></tr>
+</table>
+
+<h2 id="fields">Field reference</h2>
+<p>Generated from the running service:</p>
+<table id="fieldTable"><tr><td>Loading…</td></tr></table>
+<p><b>Source</b> keys: <code>mukana</code>/<code>lite</code> Mobile · <code>full</code> Web · <code>form</code> QR form · <code>panel</code> Panel · <code>chat</code> · <code>facebook</code> · <code>youtube</code> · <code>twitter</code>.<br>
+<b>Votes</b> are stored negated in Mukana and shown positive here.<br>
+<b>Next Up</b> is the first question in Mukana's On Deck list after the live one. <b>Counts</b> match the Voting Qs / On Deck / Answered tabs in panelView (On Deck includes the live question).<br>
+When no question is live, Question and Panel fields are cleared; Next Up and Counts stay updated.</p>
+
+<h2 id="traffic">How it connects</h2>
+<p>Nothing is polled. The service opens a streaming connection to Firebase and Firebase pushes changes as they happen.</p>
+<table>
+  <tr><th>Link</th><th>Mechanism</th><th>Traffic</th></tr>
+  <tr><td>Mukana → service</td><td>6 Firebase streams (Server-Sent Events): live question, hands, panelists online, On Deck, Voting Qs, Answered. One snapshot on connect, then only changes.</td><td>Keep-alive about every 30 s. Silence when nothing changes.</td></tr>
+  <tr><td>Auth</td><td>Token renewal with Google once per hour. Streams reconnect and re-download their snapshot.</td><td>A few hundred KB per hour at most.</td></tr>
+  <tr><td>Service → mimoLive</td><td>HTTP to the mimoLive API, only when a mapped value changes.</td><td>LAN only.</td></tr>
+  <tr><td>This UI → service</td><td>Status refresh every second while the page is open.</td><td>LAN only.</td></tr>
+</table>
+<div class="note">Firebase bills for downloaded data and concurrent connections, and the Firebase project belongs to Mukana, not to us. The load is about the same as one extra panelist with panelView open, and lower in practice, since panelView also streams chat, likes and DMs.</div>
+
+<h2 id="background">Run in the background (macOS)</h2>
+<p>To start the service at login and restart it if it stops, use the launchd file in <code>service/launchd/</code>. Edit the node path (<code>which node</code>) and the folder paths first, then:</p>
+<pre><code>cp launchd/no.mediaevent.mukana-sync.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/no.mediaevent.mukana-sync.plist
+
+# stop and remove
+launchctl unload ~/Library/LaunchAgents/no.mediaevent.mukana-sync.plist</code></pre>
+<p>Log file: <code>/tmp/mukana-sync.log</code>.</p>
+
+<h2 id="trouble">Troubleshooting</h2>
+<table>
+  <tr><th>Symptom</th><th>Cause / fix</th></tr>
+  <tr><td><code>Token refresh failed: INVALID_REFRESH_TOKEN</code> or <code>TOKEN_EXPIRED</code></td><td>The token was revoked (signed out of Google everywhere, password change). Get a new token.</td></tr>
+  <tr><td>Stream error <code>HTTP 401 Permission denied</code></td><td>Wrong Event ID, or your account isn't host on this event.</td></tr>
+  <tr><td>Status stays <b>LIVE · waiting</b> while a question is on air</td><td>Check the Event ID matches the panelView URL (<code>?event=…</code>).</td></tr>
+  <tr><td><b>Scan network</b> finds nothing / <i>No connection</i></td><td>Turn on <i>Allow Remote Control</i> in mimoLive, check the firewall on the mimoLive Mac, and check the port (8989).</td></tr>
+  <tr><td>Values in the Live table but not in mimoLive</td><td>Run <b>Verify against mimoLive</b>. A ❌ with <i>input key does not exist</i> means the wrong input key is chosen for that layer.</td></tr>
+  <tr><td>mimoLive document reopened, layers empty</td><td>Click <b>Resend all</b>. Layer IDs survive reopening, so the mapping stays valid.</td></tr>
+  <tr><td><code>EADDRINUSE</code> on start</td><td>The service is already running, or something else uses port 8790. Stop it or use <code>PORT=…</code>.</td></tr>
+  <tr><td>URL in the question is cut off</td><td>Mukana limits questions to about 250 characters, so the URL is already truncated in Mukana.</td></tr>
+</table>
+
+<h2 id="limits">Limitations</h2>
+<ul>
+  <li>Mukana's data structure is undocumented (mapped from panelView v260113a). If Mukana changes it, the service may need an update.</li>
+  <li>Firebase settings (API key, database URL, origin) can be changed under <i>Advanced</i> for another Mukana instance.</li>
+  <li>One event per service instance. Run a second instance on another <code>PORT</code> with its own <code>DATA_DIR</code> for parallel events.</li>
+</ul>
+</main>
+</div>
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+fetch('/api/fields').then(r => r.json()).then(fields => {
+  let html = '<tr><th>Group</th><th>Field</th><th>Default input key</th></tr>', last = '';
+  for (const f of fields) {
+    html += `<tr><td>${f.group !== last ? esc(last = f.group) : ''}</td><td>${esc(f.label)}</td><td><code>${esc(f.defaultKey)}</code></td></tr>`;
+  }
+  document.getElementById('fieldTable').innerHTML = html;
+}).catch(() => { document.getElementById('fieldTable').innerHTML = '<tr><td>Could not load field list.</td></tr>'; });
+</script>
+</body>
+</html>
