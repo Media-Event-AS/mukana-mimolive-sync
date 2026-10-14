@@ -5,7 +5,7 @@
   <key>Label</key><string>no.mediaevent.mukana-sync</string>
   <key>ProgramArguments</key>
   <array>
-    <!-- Juster: `which node` -->
+    <!-- Adjust: `which node` -->
     <string>/opt/homebrew/bin/node</string>
     <string>/Users/ronnyhofsoy/Projects/Mukana-Mimolive-Sync-v2/service/src/server.js</string>
   </array>
@@ -13,7 +13,7 @@
   <key>EnvironmentVariables</key>
   <dict>
     <key>PORT</key><string>8790</string>
-    <key>UI_PASSWORD</key><string>endre-meg</string>
+    <key>UI_PASSWORD</key><string>change-me</string>
   </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>

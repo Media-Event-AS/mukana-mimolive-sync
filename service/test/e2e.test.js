@@ -30,6 +30,27 @@ assert.equal(d.values.url, 'https://x.no/y');
 assert.equal(d.values.queue, '2. Anne, 3. Per');
 assert.equal(d.values.activePanelist, 'Ola');
 assert.equal(deriveFields(null).active, false);
+const host = {
+  Q1: { displayName: 'Kari', comment: 'x', source: 'form', hostNotes: 'Ask about <b>budget</b>', namePho: 'KAH-ree', locPho: 'TROMS-uh', ts_answered: Date.UTC(2026, 0, 1, 12, 5), status: 'answering', orderID: 1 },
+  Q2: { displayName: 'Nils', comment: 'Second question', orderID: 3, status: 'active' },
+  Q3: { displayName: 'Siri', comment: 'Next up', orderID: 2 },
+};
+const d2 = deriveFields({ key: 'Q1', n: 'Kari', q: 'Hei', loc_cc: 'no', v: -5, rd: true }, null, { a: {}, b: {} }, host);
+assert.equal(d2.values.countryFlag, '🇳🇴');
+assert.equal(d2.values.countryCode, 'NO');
+assert.equal(d2.values.votes, '5');
+assert.equal(d2.values.notes, 'Ask about budget');
+assert.equal(d2.values.source, 'form');
+assert.equal(d2.values.sourceLabel, 'QR form');
+assert.equal(d2.values.namePhonetic, 'KAH-ree');
+assert.equal(d2.values.doneReading, 'yes');
+assert.match(d2.values.answeringSince, /^\d\d:\d\d$/);
+assert.equal(d2.values.waitingCount, '2');
+assert.equal(d2.values.nextName, 'Siri');
+assert.equal(d2.values.panelistsOnline, '2');
+const d3 = deriveFields(null, null, null, host);
+assert.equal(d3.values.name, '');
+assert.equal(d3.values.nextName, 'Siri', 'rundown available without live question');
 console.log('✓ unit');
 
 // ---------- mocks ----------

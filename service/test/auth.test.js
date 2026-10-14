@@ -20,7 +20,7 @@ try {
   }
   const page = await fetch(`${base}/`);
   assert.equal(page.status, 401);
-  assert.match(await page.text(), /Logg inn/);
+  assert.match(await page.text(), /Sign in/);
   assert.equal((await fetch(`${base}/api/status`)).status, 401);
 
   const bad = await fetch(`${base}/api/login`, { method: 'POST', body: JSON.stringify({ password: 'nope' }) });

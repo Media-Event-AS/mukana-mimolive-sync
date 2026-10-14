@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="no">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -62,32 +62,32 @@
 <body>
 <header>
   <h1>Mukana → mimoLive Sync</h1>
-  <span id="pill" class="pill">Stoppet</span>
+  <span id="pill" class="pill">Stopped</span>
   <span id="user" class="hint" style="margin:0"></span>
   <span class="spacer"></span>
   <button id="btnStart" class="primary">Start sync</button>
-  <button id="btnStop" class="danger">Stopp</button>
+  <button id="btnStop" class="danger">Stop</button>
 </header>
 
 <main>
   <section>
     <h2>1 · Mukana</h2>
-    <label for="eventId">Event-ID</label>
-    <input id="eventId" placeholder="f.eks. ohtest">
-    <label for="refreshToken">Refresh-token</label>
-    <input id="refreshToken" type="password" autocomplete="off" placeholder="Lim inn token">
+    <label for="eventId">Event ID</label>
+    <input id="eventId" placeholder="e.g. ohtest">
+    <label for="refreshToken">Refresh token</label>
+    <input id="refreshToken" type="password" autocomplete="off" placeholder="Paste token">
     <div class="hint">
-      Logg inn på Mukana panelView i Chrome/Safari (som host), åpne DevTools-konsollen og kjør:
+      Sign in to Mukana panelView in Chrome/Safari (as host), open the DevTools console and run:
       <pre>copy(firebase.auth().currentUser.refreshToken)</pre>
-      Tokenet ligger nå på utklippstavla. Lim det inn over. Det fornyes automatisk og lagres bare på denne maskinen.
+      The token is now on your clipboard (the console prints <code>undefined</code>, that's expected). Paste it above. It renews automatically and is stored only on this machine.
     </div>
     <details>
-      <summary>Avansert</summary>
+      <summary>Advanced</summary>
       <label for="apiKey">Firebase API-key</label><input id="apiKey">
-      <label for="databaseURL">Database-URL</label><input id="databaseURL">
-      <label for="origin">Origin (Mukana-domene)</label><input id="origin">
+      <label for="databaseURL">Database URL</label><input id="databaseURL">
+      <label for="origin">Origin (Mukana domain)</label><input id="origin">
     </details>
-    <div class="btns"><button class="primary" id="btnSaveMukana">Lagre</button></div>
+    <div class="btns"><button class="primary" id="btnSaveMukana">Save</button></div>
   </section>
 
   <section>
@@ -97,46 +97,46 @@
       <div class="narrow"><label for="mlPort">Port</label><input id="mlPort" inputmode="numeric"></div>
     </div>
     <div class="btns">
-      <button id="btnDiscover">Søk i nettverket</button>
-      <button id="btnDocs">Hent dokumenter</button>
+      <button id="btnDiscover">Scan network</button>
+      <button id="btnDocs">Load documents</button>
     </div>
     <div id="found" class="found"></div>
-    <label for="mlDoc">Dokument</label>
-    <select id="mlDoc"><option value="">— hent dokumenter først —</option></select>
-    <div class="hint">Krever at «Allow Remote Control» er slått på i mimoLive (Preferences → Remote Control).</div>
-    <div class="btns"><button class="primary" id="btnSaveMl">Lagre</button></div>
+    <label for="mlDoc">Document</label>
+    <select id="mlDoc"><option value="">— load documents first —</option></select>
+    <div class="hint">Requires “Allow Remote Control” to be enabled in mimoLive (Preferences → Remote Control).</div>
+    <div class="btns"><button class="primary" id="btnSaveMl">Save</button></div>
   </section>
 
   <section class="wide">
     <h2>3 · Mapping</h2>
     <table class="map-table">
-      <thead><tr><th style="width:22%">Mukana-felt</th><th style="width:38%">mimoLive-lag / -kilde</th><th style="width:32%">Input-felt</th><th></th></tr></thead>
+      <thead><tr><th style="width:22%">Mukana field</th><th style="width:38%">mimoLive layer / source</th><th style="width:32%">Input key</th><th></th></tr></thead>
       <tbody id="mapBody"></tbody>
     </table>
     <div class="btns">
-      <button id="btnAddRow">+ Legg til rad</button>
-      <button id="btnReloadEls">Last lag på nytt</button>
+      <button id="btnAddRow">+ Add row</button>
+      <button id="btnReloadEls">Reload layers</button>
       <span class="spacer"></span>
-      <button class="primary" id="btnSaveMap">Lagre mapping</button>
+      <button class="primary" id="btnSaveMap">Save mapping</button>
     </div>
   </section>
 
   <section class="wide">
     <h2>4 · Live</h2>
     <div class="stats">
-      <span>Strømmer: <b id="streams">–</b></span>
-      <span>Oppdateringer: <b id="updates">0</b></span>
-      <span>Feil: <b id="errors">0</b></span>
-      <span>Sist: <b id="last">–</b></span>
+      <span>Streams: <b id="streams">–</b></span>
+      <span>Updates: <b id="updates">0</b></span>
+      <span>Errors: <b id="errors">0</b></span>
+      <span>Last: <b id="last">–</b></span>
     </div>
     <table><tbody id="liveBody"></tbody></table>
     <div class="btns">
-      <button id="btnPush">Send alt på nytt</button>
-      <button id="btnVerify">Verifiser mot mimoLive</button>
-      <button id="btnClear" class="danger">Tøm mimoLive</button>
+      <button id="btnPush">Resend all</button>
+      <button id="btnVerify">Verify against mimoLive</button>
+      <button id="btnClear" class="danger">Clear mimoLive</button>
     </div>
     <table id="verify" style="margin-top:10px"></table>
-    <label>Logg</label>
+    <label>Log</label>
     <div class="log" id="log"></div>
   </section>
 </main>
@@ -161,7 +161,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 function fillConfig() {
   $('eventId').value = cfg.mukana.eventId || '';
   $('refreshToken').value = '';
-  $('refreshToken').placeholder = cfg.mukana.hasRefreshToken ? 'Lagret ✓ (lim inn for å bytte)' : 'Lim inn token';
+  $('refreshToken').placeholder = cfg.mukana.hasRefreshToken ? 'Saved ✓ (paste to replace)' : 'Paste token';
   $('apiKey').value = cfg.mukana.apiKey; $('databaseURL').value = cfg.mukana.databaseURL; $('origin').value = cfg.mukana.origin;
   $('mlHost').value = cfg.mimolive.host || ''; $('mlPort').value = cfg.mimolive.port || 8989;
 }
@@ -169,7 +169,7 @@ function fillConfig() {
 async function loadDocs(selectId) {
   const host = $('mlHost').value.trim(), port = $('mlPort').value.trim() || 8989;
   const docs = await api('GET', `/api/mimolive/documents?host=${encodeURIComponent(host)}&port=${port}`);
-  $('mlDoc').innerHTML = docs.map(d => `<option value="${esc(d.id)}">${esc(d.name)} (${esc(d.id)})</option>`).join('') || '<option value="">Ingen åpne dokumenter</option>';
+  $('mlDoc').innerHTML = docs.map(d => `<option value="${esc(d.id)}">${esc(d.name)} (${esc(d.id)})</option>`).join('') || '<option value="">No open documents</option>';
   if (selectId && docs.some(d => d.id === selectId)) $('mlDoc').value = selectId;
   return docs;
 }
@@ -179,16 +179,16 @@ async function loadElements() {
   if (!host || !doc) { elements = { layers: [], sources: [] }; return; }
   try {
     elements = await api('GET', `/api/mimolive/elements?host=${encodeURIComponent(host)}&port=${port}&doc=${encodeURIComponent(doc)}`);
-  } catch (e) { elements = { layers: [], sources: [] }; toast('Kunne ikke hente lag: ' + e.message, true); }
+  } catch (e) { elements = { layers: [], sources: [] }; toast('Could not load layers: ' + e.message, true); }
 }
 
 function elementOptions(sel) {
   const opt = (e) => `<option value="${e.kind}:${esc(e.id)}" ${sel === e.kind + ':' + e.id ? 'selected' : ''}>${esc(e.name)}</option>`;
   let known = [...elements.layers, ...elements.sources].some(e => sel === e.kind + ':' + e.id);
-  let html = '<option value="">— velg —</option>';
-  if (sel && !known) html += `<option value="${esc(sel)}" selected>${esc(sel.split(':')[1])} (ikke funnet)</option>`;
-  html += `<optgroup label="Lag">${elements.layers.map(opt).join('')}</optgroup>`;
-  if (elements.sources.length) html += `<optgroup label="Kilder">${elements.sources.map(opt).join('')}</optgroup>`;
+  let html = '<option value="">— select —</option>';
+  if (sel && !known) html += `<option value="${esc(sel)}" selected>${esc(sel.split(':')[1])} (not found)</option>`;
+  html += `<optgroup label="Layers">${elements.layers.map(opt).join('')}</optgroup>`;
+  if (elements.sources.length) html += `<optgroup label="Sources">${elements.sources.map(opt).join('')}</optgroup>`;
   return html;
 }
 function keyOptions(elKey, field, selKey) {
@@ -200,14 +200,18 @@ function keyOptions(elKey, field, selKey) {
   return all.map(k => `<option ${k === selKey ? 'selected' : ''}>${esc(k)}</option>`).join('');
 }
 
+function fieldOptions(sel) {
+  const groups = [...new Set(FIELDS.map(f => f.group))];
+  return groups.map(g => `<optgroup label="${esc(g)}">${FIELDS.filter(f => f.group === g).map(f => `<option value="${f.id}" ${f.id === sel ? 'selected' : ''}>${esc(f.label)}</option>`).join('')}</optgroup>`).join('');
+}
 function addRow(t = {}) {
   const tr = document.createElement('tr');
   const elKey = t.id ? `${t.kind}:${t.id}` : '';
   tr.innerHTML = `
-    <td><select class="f">${FIELDS.map(f => `<option value="${f.id}" ${f.id === t.field ? 'selected' : ''}>${esc(f.label)}</option>`).join('')}</select></td>
+    <td><select class="f">${fieldOptions(t.field)}</select></td>
     <td><select class="e">${elementOptions(elKey)}</select></td>
     <td><select class="k">${keyOptions(elKey, t.field || FIELDS[0].id, t.key)}</select></td>
-    <td style="width:1%"><button class="danger x" title="Fjern">✕</button></td>`;
+    <td style="width:1%"><button class="danger x" title="Remove">✕</button></td>`;
   const f = tr.querySelector('.f'), e = tr.querySelector('.e'), k = tr.querySelector('.k');
   const refreshKeys = () => { k.innerHTML = keyOptions(e.value, f.value, null); const def = (FIELDS.find(x => x.id === f.value) || {}).defaultKey; if ([...k.options].some(o => o.value === def)) k.value = def; };
   e.onchange = refreshKeys; f.onchange = refreshKeys;
@@ -230,16 +234,21 @@ function renderStatus(s) {
   const streams = Object.values(s.streams);
   const allLive = streams.length && streams.every(x => x === 'live');
   const anyErr = s.mukanaError || streams.some(x => x === 'error');
-  if (!s.running) { pill.textContent = s.mukanaError ? 'Feil' : 'Stoppet'; pill.className = 'pill' + (s.mukanaError ? ' err' : ''); }
-  else if (anyErr) { pill.textContent = 'Feil'; pill.className = 'pill err'; }
-  else if (allLive) { pill.textContent = s.current.active ? 'LIVE · spørsmål aktivt' : 'LIVE · venter'; pill.className = 'pill live'; }
-  else { pill.textContent = 'Kobler til…'; pill.className = 'pill wait'; }
+  if (!s.running) { pill.textContent = s.mukanaError ? 'Error' : 'Stopped'; pill.className = 'pill' + (s.mukanaError ? ' err' : ''); }
+  else if (anyErr) { pill.textContent = 'Error'; pill.className = 'pill err'; }
+  else if (allLive) { pill.textContent = s.current.active ? 'LIVE · question on air' : 'LIVE · waiting'; pill.className = 'pill live'; }
+  else { pill.textContent = 'Connecting…'; pill.className = 'pill wait'; }
   $('user').textContent = s.user ? (s.user.email || s.user.uid) : '';
   $('btnStart').disabled = s.running; $('btnStop').disabled = !s.running;
   $('streams').textContent = Object.entries(s.streams).map(([k, v]) => `${k}: ${v}`).join(' · ') || '–';
   $('updates').textContent = s.stats.updates; $('errors').textContent = s.stats.errors;
   $('last').textContent = s.stats.lastUpdate ? new Date(s.stats.lastUpdate).toLocaleTimeString() : '–';
-  $('liveBody').innerHTML = FIELDS.map(f => `<tr><th style="width:22%">${esc(f.label)}</th><td class="val">${esc(s.current.values[f.id]) || '<span style="color:var(--muted)">–</span>'}</td></tr>`).join('');
+  const mapped = new Set((cfg?.targets || []).map(t => t.field));
+  let lastGroup = '';
+  $('liveBody').innerHTML = FIELDS.map(f => {
+    const head = f.group !== lastGroup ? `<tr><td colspan="2" style="padding-top:14px;color:var(--accent);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px">${esc(lastGroup = f.group)}</td></tr>` : '';
+    return head + `<tr><th style="width:26%">${esc(f.label)}${mapped.has(f.id) ? ' <span title="Mapped to mimoLive" style="color:var(--ok)">●</span>' : ''}</th><td class="val">${esc(s.current.values[f.id]) || '<span style="color:var(--muted)">–</span>'}</td></tr>`;
+  }).join('');
   const log = $('log'), atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 10;
   log.innerHTML = s.log.map(l => `<div class="${l.level}"><time>${new Date(l.ts).toLocaleTimeString()}</time>${esc(l.msg)}</div>`).join('');
   if (atBottom) log.scrollTop = log.scrollHeight;
@@ -250,57 +259,57 @@ async function poll() {
 }
 
 async function saveCfg(patch, msg) {
-  try { cfg = await api('POST', '/api/config', patch); toast(msg || 'Lagret'); fillConfig(); } catch (e) { toast(e.message, true); }
+  try { cfg = await api('POST', '/api/config', patch); toast(msg || 'Saved'); fillConfig(); } catch (e) { toast(e.message, true); }
 }
 
 $('btnSaveMukana').onclick = () => saveCfg({ mukana: {
   eventId: $('eventId').value.trim(), refreshToken: $('refreshToken').value.trim(),
-  apiKey: $('apiKey').value.trim(), databaseURL: $('databaseURL').value.trim(), origin: $('origin').value.trim() } }, 'Mukana lagret');
+  apiKey: $('apiKey').value.trim(), databaseURL: $('databaseURL').value.trim(), origin: $('origin').value.trim() } }, 'Mukana saved');
 
-$('btnDocs').onclick = async () => { try { const d = await loadDocs(cfg.mimolive.documentId); toast(`${d.length} dokument(er) funnet`); } catch (e) { toast('Ingen kontakt: ' + e.message, true); } };
+$('btnDocs').onclick = async () => { try { const d = await loadDocs(cfg.mimolive.documentId); toast(`${d.length} document(s) found`); } catch (e) { toast('No connection: ' + e.message, true); } };
 
 $('btnDiscover').onclick = async () => {
-  const b = $('btnDiscover'); b.disabled = true; b.textContent = 'Søker…'; $('found').innerHTML = '';
+  const b = $('btnDiscover'); b.disabled = true; b.textContent = 'Scanning…'; $('found').innerHTML = '';
   try {
     const list = await api('GET', `/api/mimolive/discover?port=${$('mlPort').value || 8989}`);
-    $('found').innerHTML = list.length ? '' : '<div class="hint">Fant ingen mimoLive på port ' + esc($('mlPort').value) + '.</div>';
+    $('found').innerHTML = list.length ? '' : '<div class="hint">No mimoLive found on port ' + esc($('mlPort').value) + '.</div>';
     list.forEach(m => {
       const btn = document.createElement('button');
-      btn.innerHTML = `<b>${esc(m.host)}:${m.port}</b> — ${m.documents.map(d => esc(d.name)).join(', ') || 'ingen åpne dokumenter'}`;
+      btn.innerHTML = `<b>${esc(m.host)}:${m.port}</b> — ${m.documents.map(d => esc(d.name)).join(', ') || 'no open documents'}`;
       btn.onclick = async () => { $('mlHost').value = m.host; $('mlPort').value = m.port; await loadDocs(); };
       $('found').appendChild(btn);
     });
   } catch (e) { toast(e.message, true); }
-  b.disabled = false; b.textContent = 'Søk i nettverket';
+  b.disabled = false; b.textContent = 'Scan network';
 };
 
 $('btnSaveMl').onclick = async () => {
-  await saveCfg({ mimolive: { host: $('mlHost').value.trim(), port: Number($('mlPort').value) || 8989, documentId: $('mlDoc').value } }, 'mimoLive lagret');
+  await saveCfg({ mimolive: { host: $('mlHost').value.trim(), port: Number($('mlPort').value) || 8989, documentId: $('mlDoc').value } }, 'mimoLive saved');
   await loadElements(); renderMapping();
 };
 $('btnAddRow').onclick = () => addRow({ field: FIELDS[0].id });
-$('btnReloadEls').onclick = async () => { const keep = collectMapping(); await loadElements(); $('mapBody').innerHTML = ''; (keep.length ? keep : [{}]).forEach(addRow); toast(`${elements.layers.length} lag, ${elements.sources.length} kilder`); };
-$('btnSaveMap').onclick = () => saveCfg({ targets: collectMapping() }, 'Mapping lagret');
+$('btnReloadEls').onclick = async () => { const keep = collectMapping(); await loadElements(); $('mapBody').innerHTML = ''; (keep.length ? keep : [{}]).forEach(addRow); toast(`${elements.layers.length} layers, ${elements.sources.length} sources`); };
+$('btnSaveMap').onclick = () => saveCfg({ targets: collectMapping() }, 'Mapping saved');
 $('btnStart').onclick = async () => { try { renderStatus(await api('POST', '/api/start')); } catch (e) { toast(e.message, true); } };
 $('btnStop').onclick = async () => renderStatus(await api('POST', '/api/stop'));
-$('btnPush').onclick = async () => { await api('POST', '/api/push'); toast('Sendt'); };
+$('btnPush').onclick = async () => { await api('POST', '/api/push'); toast('Sent'); };
 $('btnVerify').onclick = async () => {
   try {
     const rows = await api('GET', '/api/mimolive/verify');
     const label = (id) => (FIELDS.find(f => f.id === id) || {}).label || id;
-    $('verify').innerHTML = '<thead><tr><th></th><th>Felt</th><th>Lag</th><th>I mimoLive nå</th></tr></thead>' + rows.map(r =>
-      `<tr><td>${r.ok ? '✅' : '❌'}</td><td>${esc(label(r.field))}</td><td>${esc(r.target)}</td><td class="val">${esc(r.error || (r.keyExists === false ? 'input-feltet finnes ikke på laget' : r.actual))}</td></tr>`).join('');
-    toast(rows.every(r => r.ok) ? 'Alt stemmer' : 'Avvik funnet', !rows.every(r => r.ok));
+    $('verify').innerHTML = '<thead><tr><th></th><th>Field</th><th>Layer</th><th>Now in mimoLive</th></tr></thead>' + rows.map(r =>
+      `<tr><td>${r.ok ? '✅' : '❌'}</td><td>${esc(label(r.field))}</td><td>${esc(r.target)}</td><td class="val">${esc(r.error || (r.keyExists === false ? 'input key does not exist on this layer' : r.actual))}</td></tr>`).join('');
+    toast(rows.every(r => r.ok) ? 'All values match' : 'Mismatch found', !rows.every(r => r.ok));
   } catch (e) { toast(e.message, true); }
 };
-$('btnClear').onclick =async () => { await api('POST', '/api/clear'); toast('mimoLive tømt'); };
+$('btnClear').onclick =async () => { await api('POST', '/api/clear'); toast('mimoLive cleared'); };
 
 (async () => {
   FIELDS = await api('GET', '/api/fields');
   cfg = await api('GET', '/api/config');
   fillConfig();
   if (cfg.mimolive.host) loadDocs(cfg.mimolive.documentId).catch(() => {
-    $('mlDoc').innerHTML = cfg.mimolive.documentId ? `<option value="${esc(cfg.mimolive.documentId)}">${esc(cfg.mimolive.documentId)} (ikke tilkoblet)</option>` : '<option value="">— hent dokumenter først —</option>';
+    $('mlDoc').innerHTML = cfg.mimolive.documentId ? `<option value="${esc(cfg.mimolive.documentId)}">${esc(cfg.mimolive.documentId)} (not connected)</option>` : '<option value="">— load documents first —</option>';
   });
   await loadElements();
   renderMapping();

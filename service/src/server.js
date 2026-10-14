@@ -58,18 +58,18 @@ function authorized(req) {
   return false;
 }
 
-const LOGIN_HTML = `<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Logg inn · Mukana Sync</title><style>
+const LOGIN_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · Mukana Sync</title><style>
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0f1115;color:#e6e8ec;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 form{background:#171a21;border:1px solid #262b36;border-radius:10px;padding:24px;width:min(320px,calc(100vw - 32px))}
 h1{font-size:16px;margin:0 0 16px}input{width:100%;box-sizing:border-box;background:#0f1115;color:#e6e8ec;border:1px solid #262b36;border-radius:6px;padding:10px;font:inherit}
 button{margin-top:12px;width:100%;background:#3d8bfd;color:#fff;border:0;border-radius:6px;padding:10px;font:inherit;font-weight:600;cursor:pointer}
 p{color:#ff5c5c;font-size:13px;min-height:1em;margin:10px 0 0}</style></head><body>
-<form id="f"><h1>Mukana → mimoLive Sync</h1><input id="pw" type="password" placeholder="Passord" autofocus autocomplete="current-password">
-<button>Logg inn</button><p id="e"></p></form>
+<form id="f"><h1>Mukana → mimoLive Sync</h1><input id="pw" type="password" placeholder="Password" autofocus autocomplete="current-password">
+<button>Sign in</button><p id="e"></p></form>
 <script>document.getElementById('f').onsubmit=async(ev)=>{ev.preventDefault();
 const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pw').value})});
-if(r.ok)location.href='/';else document.getElementById('e').textContent='Feil passord';};</script></body></html>`;
+if(r.ok)location.href='/';else document.getElementById('e').textContent='Wrong password';};</script></body></html>`;
 
 const routes = {
   'GET /api/config': () => publicConfig(config),
@@ -148,7 +148,7 @@ const server = http.createServer(async (req, res) => {
     const { password } = await readBody(req).catch(() => ({}));
     if (!UI_PASSWORD || !safeEqual(password ?? '', UI_PASSWORD)) {
       await new Promise((r) => setTimeout(r, 500)); // slow down guessing
-      return send(res, 401, { error: 'Feil passord' });
+      return send(res, 401, { error: 'Wrong password' });
     }
     const sid = crypto.randomBytes(24).toString('hex');
     sessions.add(sid);
@@ -179,10 +179,10 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Mukana → mimoLive Sync kjører på http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
-  if (!UI_PASSWORD) console.log('Tips: sett UI_PASSWORD for å beskytte web-UI-et på nettverket.');
+  console.log(`Mukana → mimoLive Sync running at http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
+  if (!UI_PASSWORD) console.log('Tip: set UI_PASSWORD to password-protect the web UI on the network.');
   if (config.autoStart && config.mukana.refreshToken && config.mukana.eventId) {
-    engine.start().catch((e) => console.error('Autostart feilet:', e.message));
+    engine.start().catch((e) => console.error('Autostart failed:', e.message));
   }
 });
 
