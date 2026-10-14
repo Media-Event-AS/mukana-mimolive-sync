@@ -33,9 +33,10 @@ assert.equal(deriveFields(null).active, false);
 const host = {
   Q1: { displayName: 'Kari', comment: 'x', source: 'form', hostNotes: 'Ask about <b>budget</b>', namePho: 'KAH-ree', locPho: 'TROMS-uh', ts_answered: Date.UTC(2026, 0, 1, 12, 5), status: 'answering', orderID: 1 },
   Q2: { displayName: 'Nils', comment: 'Second question', orderID: 3, status: 'active' },
-  Q3: { displayName: 'Siri', comment: 'Next up', orderID: 2 },
+  Q3: { displayName: 'Siri', comment: 'Next up https://x.no', orderID: 2, city: 'Bodø', tag: 'Tech' },
+  Q4: { displayName: 'Gone', comment: 'removed', orderID: 0, ts_removed: 1 },
 };
-const d2 = deriveFields({ key: 'Q1', n: 'Kari', q: 'Hei', loc_cc: 'no', v: -5, rd: true }, null, { a: {}, b: {} }, host);
+const d2 = deriveFields({ key: 'Q1', n: 'Kari', q: 'Hei', loc_cc: 'no', v: -5, rd: true }, null, { a: {}, b: {} }, host, { s1: {}, s2: {}, s3: { ts_removed: 5 } }, { a1: {} });
 assert.equal(d2.values.countryFlag, '🇳🇴');
 assert.equal(d2.values.countryCode, 'NO');
 assert.equal(d2.values.votes, '5');
@@ -45,8 +46,14 @@ assert.equal(d2.values.sourceLabel, 'QR form');
 assert.equal(d2.values.namePhonetic, 'KAH-ree');
 assert.equal(d2.values.doneReading, 'yes');
 assert.match(d2.values.answeringSince, /^\d\d:\d\d$/);
-assert.equal(d2.values.waitingCount, '2');
+assert.equal(d2.values.onDeckCount, '3');
 assert.equal(d2.values.nextName, 'Siri');
+assert.equal(d2.values.nextLocation, 'Bodø');
+assert.equal(d2.values.nextTag, 'Tech');
+assert.equal(d2.values.nextQuestion, 'Next up');
+assert.equal(d2.values.nextQuestionFull, 'Next up https://x.no');
+assert.equal(d2.values.votingCount, '2');
+assert.equal(d2.values.answeredCount, '1');
 assert.equal(d2.values.panelistsOnline, '2');
 const d3 = deriveFields(null, null, null, host);
 assert.equal(d3.values.name, '');

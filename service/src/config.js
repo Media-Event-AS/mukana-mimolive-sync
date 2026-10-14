@@ -31,10 +31,16 @@ export const FIELDS = [
   { id: 'queue', label: 'Panelist queue (queued)', group: 'Panel', defaultKey: 'tvGroup_Note__Note_TypeMultiline' },
   { id: 'activePanelist', label: 'Active panelist', group: 'Panel', defaultKey: TXT },
   { id: 'panelistsOnline', label: 'Panelists online (count)', group: 'Panel', defaultKey: TXT },
-  // Rundown
-  { id: 'waitingCount', label: 'Questions waiting (count)', group: 'Rundown', defaultKey: TXT },
-  { id: 'nextName', label: 'On deck: name', group: 'Rundown', defaultKey: TXT },
-  { id: 'nextQuestion', label: 'On deck: question', group: 'Rundown', defaultKey: TXT },
+  // Next up (first question in Mukana's On Deck list after the live one)
+  { id: 'nextName', label: 'Next up: name', group: 'Next Up', defaultKey: TXT },
+  { id: 'nextLocation', label: 'Next up: location', group: 'Next Up', defaultKey: TXT },
+  { id: 'nextTag', label: 'Next up: tag', group: 'Next Up', defaultKey: TXT },
+  { id: 'nextQuestion', label: 'Next up: question (URL removed)', group: 'Next Up', defaultKey: TXT },
+  { id: 'nextQuestionFull', label: 'Next up: question (original)', group: 'Next Up', defaultKey: TXT },
+  // Counts (same numbers as the tabs in Mukana panelView)
+  { id: 'votingCount', label: 'Voting Qs (count)', group: 'Counts', defaultKey: TXT },
+  { id: 'onDeckCount', label: 'On Deck (count)', group: 'Counts', defaultKey: TXT },
+  { id: 'answeredCount', label: 'Answered (count)', group: 'Counts', defaultKey: TXT },
 ];
 
 export const DEFAULTS = {

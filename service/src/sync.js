@@ -36,7 +36,6 @@ export function extractUrl(text) {
   return { url, rest };
 }
 
-/** Pure: compute output fields from the three RTDB trees. */
 const SOURCE_LABELS = {
   mukana: 'Mobile', lite: 'Mobile', full: 'Web', form: 'QR form', panel: 'Panel',
   chat: 'Chat', blockedWord: 'Filtered', facebook: 'Facebook', youtube: 'YouTube', twitter: 'Twitter',
@@ -54,25 +53,35 @@ function hhmm(ts) {
   return new Date(n).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-/** Rundown fields that exist with or without an active question. */
-function rundown(hostOutput, onlineList, activeKey) {
+const isVisible = (q) => q && typeof q === 'object' && !q.ts_removed;
+const countOf = (tree) => String(Object.values(tree && typeof tree === 'object' ? tree : {}).filter(isVisible).length);
+
+/** Fields that exist with or without a live question: next up + counts. */
+function rundown({ hostOutput, online, source, answered }, activeKey) {
   const items = Object.entries(hostOutput && typeof hostOutput === 'object' ? hostOutput : {})
-    .filter(([k, q]) => q && typeof q === 'object' && k !== activeKey && q.status !== 'answering' && q.status !== 'complete')
+    .filter(([k, q]) => isVisible(q) && k !== activeKey && q.status !== 'answering' && q.status !== 'complete')
     .sort(([, a], [, b]) => (a.orderID ?? 0) - (b.orderID ?? 0) || (a.ts_created ?? 0) - (b.ts_created ?? 0));
   const next = items[0]?.[1];
+  const nextFull = next ? cleanText(next.comment || next.question) : '';
   return {
-    waitingCount: String(items.length),
     nextName: next ? cleanText(next.displayName) : '',
-    nextQuestion: next ? cleanText(next.comment || next.question) : '',
-    panelistsOnline: String(Object.keys(onlineList && typeof onlineList === 'object' ? onlineList : {}).length),
+    nextLocation: next ? cleanText(next.city || next.location) : '',
+    nextTag: next ? cleanText(next.tag) : '',
+    nextQuestion: next ? extractUrl(nextFull).rest : '',
+    nextQuestionFull: nextFull,
+    votingCount: countOf(source), // Mukana "Voting Qs" tab
+    onDeckCount: countOf(hostOutput), // Mukana "On Deck" tab (includes the live question)
+    answeredCount: countOf(answered), // Mukana "Answered" tab
+    panelistsOnline: String(Object.keys(online && typeof online === 'object' ? online : {}).length),
   };
 }
 
 /** Pure: compute output fields from the RTDB trees. */
-export function deriveFields(liveQ, hands, onlineList, hostOutput) {
+export function deriveFields(liveQ, hands, onlineList, hostOutput, sourceList, answered) {
+  const lists = { hostOutput, online: onlineList, source: sourceList, answered };
   const empty = Object.fromEntries(FIELDS.map((f) => [f.id, '']));
   if (!liveQ || typeof liveQ !== 'object' || !liveQ.key) {
-    return { active: false, key: null, values: { ...empty, ...rundown(hostOutput, onlineList, null) } };
+    return { active: false, key: null, values: { ...empty, ...rundown(lists, null) } };
   }
 
   // Full record from the panel list has more fields than the compact liveQ node
@@ -117,7 +126,7 @@ export function deriveFields(liveQ, hands, onlineList, hostOutput) {
       doneReading: liveQ.rd ? 'yes' : '',
       queue: queued.join(', '),
       activePanelist,
-      ...rundown(hostOutput, onlineList, liveQ.key),
+      ...rundown(lists, liveQ.key),
     },
   };
 }
@@ -129,7 +138,7 @@ export class SyncEngine extends EventEmitter {
     this.onRefreshToken = onRefreshToken;
     this.running = false;
     this.streams = {};
-    this.trees = { liveQ: null, hands: null, online: null, hostOutput: null };
+    this.trees = { liveQ: null, hands: null, online: null, hostOutput: null, source: null, answered: null };
     this.current = deriveFields(null);
     this.lastSent = new Map(); // targetKey -> value
     this.sending = false;
@@ -200,6 +209,8 @@ export class SyncEngine extends EventEmitter {
     mk('hands', `panel_hands/${ev}`);
     mk('online', `panel_onlinelist/${ev}`);
     mk('hostOutput', `comments_host_output/${ev}`);
+    mk('source', `comments_source/${ev}`);
+    mk('answered', `comments_answered/${ev}`);
     this.addLog('info', `Listening to event "${ev}"`);
   }
 
@@ -208,13 +219,13 @@ export class SyncEngine extends EventEmitter {
     Object.values(this.streams).forEach((s) => s.stop());
     this.streams = {};
     this.tokens?.stop();
-    this.trees = { liveQ: null, hands: null, online: null, hostOutput: null };
+    this.trees = { liveQ: null, hands: null, online: null, hostOutput: null, source: null, answered: null };
     this.addLog('info', 'Stopped');
   }
 
   recompute() {
     const prevKey = this.current.key;
-    this.current = deriveFields(this.trees.liveQ, this.trees.hands, this.trees.online, this.trees.hostOutput);
+    this.current = deriveFields(this.trees.liveQ, this.trees.hands, this.trees.online, this.trees.hostOutput, this.trees.source, this.trees.answered);
     if (prevKey !== this.current.key) {
       this.addLog('info', this.current.active ? `Live question: ${this.current.values.name} – "${this.current.values.question.slice(0, 60)}"` : 'No live question – clearing');
     }
