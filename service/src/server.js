@@ -3,6 +3,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 import { loadConfig, saveConfig, updateConfig, publicConfig, FIELDS } from './config.js';
 import { SyncEngine } from './sync.js';
 import { MimoLive, discover } from './mimolive.js';
@@ -35,14 +36,40 @@ async function readBody(req) {
   return data ? JSON.parse(data) : {};
 }
 
+// Session cookie auth (works in embedded browsers that don't show Basic-auth dialogs).
+// Basic auth header is still accepted for scripts/curl.
+const sessions = new Set();
+const SESSION_COOKIE = 'mms_session';
+
+function safeEqual(a, b) {
+  const x = Buffer.from(String(a)), y = Buffer.from(String(b));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+
 function authorized(req) {
   if (!UI_PASSWORD) return true;
+  const cookie = (req.headers.cookie || '').split(/;\s*/).find((c) => c.startsWith(SESSION_COOKIE + '='));
+  if (cookie && sessions.has(cookie.split('=')[1])) return true;
   const h = req.headers.authorization || '';
-  if (!h.startsWith('Basic ')) return false;
-  const decoded = Buffer.from(h.slice(6), 'base64').toString();
-  const pass = decoded.slice(decoded.indexOf(':') + 1); // username is ignored; password may contain ':'
-  return pass === UI_PASSWORD;
+  if (h.startsWith('Basic ')) {
+    const decoded = Buffer.from(h.slice(6), 'base64').toString();
+    return safeEqual(decoded.slice(decoded.indexOf(':') + 1), UI_PASSWORD);
+  }
+  return false;
 }
+
+const LOGIN_HTML = `<!doctype html><html lang="no"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logg inn · Mukana Sync</title><style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0f1115;color:#e6e8ec;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+form{background:#171a21;border:1px solid #262b36;border-radius:10px;padding:24px;width:min(320px,calc(100vw - 32px))}
+h1{font-size:16px;margin:0 0 16px}input{width:100%;box-sizing:border-box;background:#0f1115;color:#e6e8ec;border:1px solid #262b36;border-radius:6px;padding:10px;font:inherit}
+button{margin-top:12px;width:100%;background:#3d8bfd;color:#fff;border:0;border-radius:6px;padding:10px;font:inherit;font-weight:600;cursor:pointer}
+p{color:#ff5c5c;font-size:13px;min-height:1em;margin:10px 0 0}</style></head><body>
+<form id="f"><h1>Mukana → mimoLive Sync</h1><input id="pw" type="password" placeholder="Passord" autofocus autocomplete="current-password">
+<button>Logg inn</button><p id="e"></p></form>
+<script>document.getElementById('f').onsubmit=async(ev)=>{ev.preventDefault();
+const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pw').value})});
+if(r.ok)location.href='/';else document.getElementById('e').textContent='Feil passord';};</script></body></html>`;
 
 const routes = {
   'GET /api/config': () => publicConfig(config),
@@ -99,11 +126,22 @@ const routes = {
 };
 
 const server = http.createServer(async (req, res) => {
-  if (!authorized(req)) {
-    res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="Mukana Sync"' });
-    return res.end('Auth required');
-  }
   const url = new URL(req.url, 'http://x');
+  if (req.method === 'POST' && url.pathname === '/api/login') {
+    const { password } = await readBody(req).catch(() => ({}));
+    if (!UI_PASSWORD || !safeEqual(password ?? '', UI_PASSWORD)) {
+      await new Promise((r) => setTimeout(r, 500)); // slow down guessing
+      return send(res, 401, { error: 'Feil passord' });
+    }
+    const sid = crypto.randomBytes(24).toString('hex');
+    sessions.add(sid);
+    res.setHeader('Set-Cookie', `${SESSION_COOKIE}=${sid}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000`);
+    return send(res, 200, { ok: true });
+  }
+  if (!authorized(req)) {
+    if (req.method === 'GET' && !url.pathname.startsWith('/api/')) return send(res, 401, LOGIN_HTML, 'text/html; charset=utf-8');
+    return send(res, 401, { error: 'Auth required' });
+  }
   const handler = routes[`${req.method} ${url.pathname}`];
   if (handler) {
     try {
