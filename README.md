@@ -29,8 +29,8 @@ The service can run on the mimoLive machine itself or on any other machine (Mac,
 brew install node
 
 # 2. Get the code
-git clone https://github.com/Media-Event-AS/mukana-mimolive-sync-v2.git
-cd mukana-mimolive-sync-v2
+git clone https://github.com/Media-Event-AS/mukana-mimolive-sync.git
+cd mukana-mimolive-sync
 
 # 3. (Optional) run the test suite
 npm test
@@ -43,7 +43,7 @@ There is no `npm install` step: the service has zero dependencies.
 ## Run
 
 ```bash
-cd mukana-mimolive-sync-v2
+cd mukana-mimolive-sync
 npm start
 ```
 
@@ -63,7 +63,7 @@ If sync was running when the service stopped, it starts again automatically on t
 
 ### Run in the background on macOS (launchd)
 
-Edit the paths (and `which node`) in `launchd/no.mediaevent.mukana-sync.plist`, then:
+Replace `/path/to/mukana-mimolive-sync` with your folder and check the node path (`which node`) in `launchd/no.mediaevent.mukana-sync.plist`, then:
 
 ```bash
 cp launchd/no.mediaevent.mukana-sync.plist ~/Library/LaunchAgents/
@@ -133,7 +133,7 @@ Firebase bills for downloaded data and concurrent connections, and the Firebase 
 
 v3 replaces the Chrome extension entirely. Remove the old extension in `chrome://extensions`. The layer IDs from the v2 config panel still work: pick the same layers in the v3 mapping.
 
-The v2 extension code (last version 2.0.8) is kept on the [`legacy-v2-extension`](https://github.com/Media-Event-AS/mukana-mimolive-sync-v2/tree/legacy-v2-extension) branch.
+The v2 extension code (last version 2.0.8) is kept on the [`legacy-v2-extension`](https://github.com/Media-Event-AS/mukana-mimolive-sync/tree/legacy-v2-extension) branch.
 
 ## Test
 
