@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Ronny Hofsøy, Media Event AS
 // macOS autostart via a per-user launchd agent (~/Library/LaunchAgents).
 import fs from 'node:fs';
 import os from 'node:os';

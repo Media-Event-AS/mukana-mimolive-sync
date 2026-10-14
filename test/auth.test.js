@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Ronny Hofsøy, Media Event AS
 // UI auth: login page, cookie session, Basic fallback.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Ronny Hofsøy, Media Event AS
 // mimoLive HTTP API client (JSON:API, default port 8989) + LAN discovery.
 // Optional password: mimoLive expects the SHA-256 hex of the password in X-MimoLive-Password-SHA256.
 import os from 'node:os';

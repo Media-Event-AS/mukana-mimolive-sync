@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Ronny Hofsøy, Media Event AS
 // Persistent configuration (data/config.json). Written atomically.
 import fs from 'node:fs';
 import path from 'node:path';

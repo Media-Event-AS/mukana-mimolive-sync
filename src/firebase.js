@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Ronny Hofsøy, Media Event AS
 // Firebase client without SDK: token refresh via securetoken + RTDB REST streaming (SSE).
 import { EventEmitter } from 'node:events';
 

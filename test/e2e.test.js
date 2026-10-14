@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Ronny Hofsøy, Media Event AS
 // End-to-end test with mock securetoken, mock RTDB (SSE) and mock mimoLive.
 import http from 'node:http';
 import { spawn } from 'node:child_process';

@@ -151,6 +151,12 @@ The v2 extension code (last version 2.0.8) is kept on the [`legacy-v2-extension`
 
 Mukana and mimoLive are products of their respective owners. This tool is independent and not affiliated with or endorsed by them.
 
+## License
+
+Copyright © 2026 Ronny Hofsøy, Media Event AS.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License version 3, as published by the Free Software Foundation. It is distributed WITHOUT ANY WARRANTY. See [LICENSE](LICENSE) for the full text.
+
 ## Test
 
 `npm test` – unit tests, end-to-end against mock Firebase and mock mimoLive, and UI auth.

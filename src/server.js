@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Ronny Hofsøy, Media Event AS
 // HTTP server: web UI + JSON API. Zero dependencies.
 import http from 'node:http';
 import fs from 'node:fs';

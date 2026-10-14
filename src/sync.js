@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (c) 2026 Ronny Hofsøy, Media Event AS
 // Sync engine: Mukana RTDB streams -> derived fields -> mimoLive targets.
 import { EventEmitter } from 'node:events';
 import { TokenManager, RtdbStream } from './firebase.js';
