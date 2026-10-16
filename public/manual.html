@@ -75,8 +75,8 @@
 <h2 id="prereq">Prerequisites</h2>
 <table>
   <tr><th>Requirement</th><th>Notes</th></tr>
-  <tr><td><b>Node.js 18.17+</b></td><td>Check with <code>node -v</code>. No npm packages needed.</td></tr>
-  <tr><td><b>Git</b></td><td>To clone and update the code (or download the ZIP from GitHub).</td></tr>
+  <tr><td><b>Node.js 18.17+</b></td><td>Check with <code>node -v</code>. No npm packages needed. On macOS, the installer sets it up for you.</td></tr>
+  <tr><td><b>Git</b></td><td>Only for the manual install. The macOS installer does not need it.</td></tr>
   <tr><td><b>Mukana host account</b></td><td>Your Google account must have the <i>host</i> role on the event.</td></tr>
   <tr><td><b>mimoLive Remote Control</b></td><td><i>Allow Remote Control Access</i> turned on. See <a href="#mimolive" style="color:var(--accent)">Configure mimoLive</a>.</td></tr>
   <tr><td><b>Network</b></td><td>Internet access (Firebase/Google) and LAN access to the mimoLive machine on TCP 8989. Operators reach this UI on TCP 8790.</td></tr>
@@ -84,10 +84,24 @@
 <p>The service can run on the mimoLive machine or on any other Mac, Linux or Windows machine on the same LAN.</p>
 
 <h2 id="install">Install</h2>
-<pre><code># Node.js on macOS (or install the LTS package from nodejs.org)
-brew install node
+<h3>macOS: one command (recommended)</h3>
+<p>Works on a fresh Mac. You do <b>not</b> need Homebrew, Node.js or Git first.</p>
+<ol>
+  <li>Open <b>Terminal</b> (press <b>⌘ Space</b>, type <i>Terminal</i>, press Return).</li>
+  <li>Paste this line and press Return:
+<pre><code>curl -fsSL https://raw.githubusercontent.com/Media-Event-AS/mukana-mimolive-sync/main/install-mac.sh | bash</code></pre></li>
+  <li>If Node.js is missing, the installer downloads the official LTS version from nodejs.org and asks for <b>your Mac login password</b>. Nothing shows while you type. Press Return when done.</li>
+  <li>Wait for <b>Done!</b>. Every step should show a green ✔. Answer <b>Y</b> to start the service now.</li>
+</ol>
+<p>The app is installed in <code>~/mukana-mimolive-sync</code> (your home folder). The installer also makes sure <code>node</code> and <code>npm</code> work in new Terminal windows and checks that they do.</p>
+<p><b>Update:</b> run the same command again. Your settings in <code>data/</code> are kept.</p>
+<div class="note">If you see a red ✘, copy the whole Terminal window and send it to ronny@mediaevent.no.</div>
 
-# Get the code
+<h3>Manual install (any OS)</h3>
+<pre><code># 1. Node.js 18.17 or newer: install the LTS package from https://nodejs.org
+node -v
+
+# 2. Get the code
 git clone https://github.com/Media-Event-AS/mukana-mimolive-sync.git
 cd mukana-mimolive-sync
 
@@ -96,7 +110,8 @@ npm test</code></pre>
 <p>There is no <code>npm install</code> step. To update later: <code>git pull</code> in the repo folder, then restart the service.</p>
 
 <h2 id="run">Run</h2>
-<pre><code>cd mukana-mimolive-sync
+<p>On a Mac, double-click <b>start-mac.command</b> in the <code>mukana-mimolive-sync</code> folder. A Terminal window opens and runs the service, and the web UI opens in your browser. Or, in Terminal:</p>
+<pre><code>cd ~/mukana-mimolive-sync
 npm start</code></pre>
 <p>Open <code>http://localhost:8790</code>, or <code>http://&lt;machine-ip&gt;:8790</code> from another machine on the LAN. Stop with <b>Ctrl+C</b>. If sync was running when the service stopped, it starts again automatically on the next launch.</p>
 <table>
@@ -229,6 +244,9 @@ launchctl unload ~/Library/LaunchAgents/no.mediaevent.mukana-sync.plist</code></
 <h2 id="trouble">Troubleshooting</h2>
 <table>
   <tr><th>Symptom</th><th>Cause / fix</th></tr>
+  <tr><td><code>command not found: brew</code></td><td>Homebrew is not needed. Use the <a href="#install" style="color:var(--accent)">one-command installer</a>.</td></tr>
+  <tr><td><code>command not found: npm</code> or <code>node</code></td><td>Node.js is missing or not on the PATH. Run the installer, then open a <b>new</b> Terminal window.</td></tr>
+  <tr><td><code>Missing script: "start"</code></td><td>Wrong folder. Run <code>cd ~/mukana-mimolive-sync</code> first, or double-click <b>start-mac.command</b>.</td></tr>
   <tr><td><code>Token refresh failed: INVALID_REFRESH_TOKEN</code> or <code>TOKEN_EXPIRED</code></td><td>The token was revoked (signed out of Google everywhere, password change). Get a new token.</td></tr>
   <tr><td>Stream error <code>HTTP 401 Permission denied</code></td><td>Wrong Event ID, or your account isn't host on this event.</td></tr>
   <tr><td>Status stays <b>LIVE · waiting</b> while a question is on air</td><td>Check the Event ID matches the panelView URL (<code>?event=…</code>).</td></tr>

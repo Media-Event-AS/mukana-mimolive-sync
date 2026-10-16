@@ -14,8 +14,8 @@ The full operator manual is built into the web UI (**Manual** link in the header
 
 | Requirement | Notes |
 |---|---|
-| **Node.js 18.17 or newer** | Check with `node -v`. No npm packages are needed. |
-| **Git** | To clone and update the repo (or download the ZIP from GitHub). |
+| **Node.js 18.17 or newer** | Check with `node -v`. No npm packages are needed. On macOS, the installer sets it up for you. |
+| **Git** | Only for the manual install. The macOS installer does not need it. |
 | **Mukana account with the host role** | On the event you want to sync. Sign-in is via Google in a normal browser. |
 | **mimoLive** with *Allow Remote Control Access* on | See [Configure mimoLive](#configure-mimolive). Default API port 8989. |
 | **Network** | The machine running the service must reach the internet (Firebase/Google) and the mimoLive machine on the LAN (TCP 8989). Operators reach the web UI on TCP 8790. |
@@ -24,9 +24,38 @@ The service can run on the mimoLive machine itself or on any other machine (Mac,
 
 ## Install
 
+### macOS: one command (recommended)
+
+Works on a fresh Mac. You do **not** need Homebrew, Node.js or Git first.
+
+1. Open **Terminal** (press **⌘ Space**, type *Terminal*, press Return).
+2. Paste this line and press Return:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/Media-Event-AS/mukana-mimolive-sync/main/install-mac.sh | bash
+   ```
+
+3. If Node.js is missing, the installer downloads the official LTS `.pkg` from nodejs.org, checks its SHA-256 checksum and asks for **your Mac login password** to install it. Nothing shows while you type the password.
+4. Wait for **Done!**. Every step should show a green ✔. Answer **Y** to start the service now.
+
+What [`install-mac.sh`](install-mac.sh) does:
+
+| Step | |
+|---|---|
+| 1. Node.js | Uses Node 18.17+ if it is already installed (also finds it in `/opt/homebrew/bin` and `/usr/local/bin`). Otherwise installs Node.js LTS from nodejs.org into `/usr/local/bin`. |
+| 2. PATH | Opens a new login shell to check that `node` and `npm` are found. If not, it adds the folder to `~/.zprofile` (or `~/.bash_profile`) and checks again. |
+| 3. App | Downloads the latest version to `~/mukana-mimolive-sync`. If that folder is a Git checkout, it runs `git pull` instead. Settings in `data/` are kept. Run from inside a copy of the repo (`bash install-mac.sh`), it uses that copy. `MUKANA_DIR=/other/folder` changes the folder. |
+| 4. Verify | Prints the node and npm versions and checks the app files. |
+
+**Update** to the latest version: run the same command again, then restart the service.
+
+If you see a red ✘, copy the whole Terminal window and send it to ronny@mediaevent.no.
+
+### Manual install (any OS)
+
 ```bash
-# 1. Node.js (macOS, Homebrew) – or install the LTS package from https://nodejs.org
-brew install node
+# 1. Node.js 18.17 or newer: install the LTS package from https://nodejs.org
+node -v
 
 # 2. Get the code
 git clone https://github.com/Media-Event-AS/mukana-mimolive-sync.git
@@ -40,10 +69,20 @@ There is no `npm install` step: the service has zero dependencies.
 
 **Update** to the latest version: `git pull` in the repo folder, then restart the service.
 
+### Troubleshooting: `command not found`
+
+| Message | Fix |
+|---|---|
+| `command not found: brew` | You do not need Homebrew. Use the one-command installer above. |
+| `command not found: npm` or `node` | Run the installer. It installs Node.js and fixes the PATH. Then open a **new** Terminal window. |
+| `Missing script: "start"` | You are in the wrong folder. Run `cd ~/mukana-mimolive-sync` first. |
+
 ## Run
 
+On a Mac, double-click **`start-mac.command`** in the `mukana-mimolive-sync` folder. A Terminal window opens and runs the service, and the web UI opens in your browser. Or, in Terminal:
+
 ```bash
-cd mukana-mimolive-sync
+cd ~/mukana-mimolive-sync
 npm start
 ```
 
