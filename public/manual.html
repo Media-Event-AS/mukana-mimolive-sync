@@ -54,6 +54,8 @@
   <a href="#setup">First-time setup</a>
   <a href="#token">Getting the Mukana token</a>
   <a href="#mapping">Mapping</a>
+  <a href="#layers">Layer control (cues)</a>
+  <a href="#panelists">Panelists</a>
   <a href="#live">During the show</a>
   <a href="#fields">Field reference</a>
   <a href="#traffic">How it connects</a>
@@ -116,8 +118,8 @@ npm start</code></pre>
 <p>Open <code>http://localhost:8790</code>, or <code>http://&lt;machine-ip&gt;:8790</code> from another machine on the LAN. Stop with <b>Ctrl+C</b>. If sync was running when the service stopped, it starts again automatically on the next launch.</p>
 <table>
   <tr><th>Env variable</th><th>Default</th><th>Purpose</th></tr>
-  <tr><td><code>PORT</code></td><td>8790</td><td>Web UI port. Overrides the setting in <b>5 · Service</b>.</td></tr>
-  <tr><td><code>HOST</code></td><td>0.0.0.0</td><td>Bind address. <code>127.0.0.1</code> = this machine only. Overrides the setting in <b>5 · Service</b>.</td></tr>
+  <tr><td><code>PORT</code></td><td>8790</td><td>Web UI port. Overrides the setting in <b>7 · Service</b>.</td></tr>
+  <tr><td><code>HOST</code></td><td>0.0.0.0</td><td>Bind address. <code>127.0.0.1</code> = this machine only. Overrides the setting in <b>7 · Service</b>.</td></tr>
   <tr><td><code>UI_PASSWORD</code></td><td>–</td><td>Optional password for this UI. Off by default.</td></tr>
   <tr><td><code>DATA_DIR</code></td><td>data</td><td>Where settings and the token are stored.</td></tr>
   <tr><td><code>TZ</code></td><td>system</td><td>Time zone for HH:MM fields, e.g. <code>Europe/Oslo</code>.</td></tr>
@@ -146,6 +148,8 @@ npm start</code></pre>
   <li><b>1 · Mukana</b>: enter the <b>Event ID</b> (the part after <code>?event=</code> in the panelView URL, e.g. <code>ohtest</code>) and paste the <b>refresh token</b> (see below). Click <b>Save</b>.</li>
   <li><b>2 · mimoLive</b>: click <b>Scan network</b> and pick your mimoLive machine, or type its IP. Enter the password if mimoLive uses one. Click <b>Load documents</b>, choose the show document, then <b>Save</b>.</li>
   <li><b>3 · Mapping</b>: add one row per graphic element (see <a href="#mapping">Mapping</a>). Click <b>Save mapping</b>.</li>
+  <li><b>4 · Layer control</b> (optional): a cue list that takes layers and layer sets live and off (see <a href="#layers">Layer control</a>).</li>
+  <li><b>5 · Panelists</b> (optional): sources, layouts and lower thirds for panelists (see <a href="#panelists">Panelists</a>).</li>
   <li>Click <b>Start sync</b> in the header. The status should read <b>LIVE · waiting</b>, or <b>LIVE · question on air</b> when a question is being answered.</li>
 </ol>
 <p>Settings are saved on this machine and survive restarts.</p>
@@ -181,14 +185,73 @@ npm start</code></pre>
   <tr><td>Panelist queue (queued)</td><td>Panel note layer</td></tr>
 </table>
 
+<h2 id="layers">Layer control (cue list)</h2>
+<p>Section <b>4 · Layer control</b> is a cue list that works like QLab. Each row is a cue:</p>
+<table>
+  <tr><th>Column</th><th>Meaning</th></tr>
+  <tr><td><b>Trigger</b></td><td>What fires the cue: a <b>Mukana event</b> (only while <b>Auto layers</b> is on), <b>GO / Companion</b>, or <b>—</b> (only reached from the cue above). Every cue can also be fired with its <b>GO</b> button (save first).</td></tr>
+  <tr><td><b>Pre-wait</b></td><td>Seconds between firing and doing the action. The <b>Now</b> column counts down.</td></tr>
+  <tr><td><b>Action</b></td><td><b>Recall layer set</b> · <b>Layers live</b> / <b>Layers off</b> (one or more layers, ⌘/Ctrl-click; off is done when they are fully off) · <b>Switch off a set's layers</b> · <b>Panelist layout</b> · <b>Panelist lower third</b> · <b>Source into slot</b> · <b>Role into slot</b> (see <a href="#panelists" style="color:var(--accent)">Panelists</a>) · <b>Write text</b> into a layer or source input (<code>{name}</code>, <code>{location}</code> and other field names are replaced by the live question) · <b>Trigger signal</b> · <b>Wait</b> N seconds, or <b>pause until</b> GO / Continue or a Mukana event (the seconds are then an optional timeout; empty = no timeout) · <b>Fire cue</b></td></tr>
+  <tr><td><b>Continue</b></td><td><b>—</b> stops here. <b>Auto-continue</b> starts the next cue at the same moment as this one, so the pre-waits of a run of auto-continued cues read like a timeline (0 s, 3 s, 6 s…). <b>Auto-follow</b> starts the next cue when this one is done.</td></tr>
+  <tr><td><b>Cancels</b></td><td>Cue numbers to stop when this cue fires, e.g. <code>2, 3</code>.</td></tr>
+</table>
+<p>A paused cue shows <b>⏸ paused</b> and its <b>GO</b> button becomes <b>Continue</b>: GO on a paused cue continues it instead of restarting it. A cue paused until a Mukana event continues by itself when that happens. A cue fired again while it runs restarts and stops what it started. <b>Stop all cues</b> stops everything at once (no confirm: it is the panic button). Turning <b>Auto layers</b> off also stops running cues; GO still works. Use ↑ ↓ to reorder; <b>Cancels</b> and <b>Fire cue</b> keep pointing at the same cues. Click <b>Save cues</b> when done.</p>
+<p><b>Mukana events:</b> question goes live · next question replaces the live one (also counts as goes live) · question done or cancelled · host marks done reading · panelist raises hand (below the line) · panelist moved above the line · panelist starts answering · panelists answering change (join, leave, switch) · last panelist stops answering (also when the question ends while panelists answer) · host notes added or changed. Hand and notes events only count within the same question. The host never counts as answering.</p>
+<div class="note">Question text timing is built in. When the question changes, text in layers a cue has taken live is held at what is on screen. A cue that takes such a layer live first takes it off, then writes the new text. A cue that takes it off clears the text once it is off.</div>
+<p>Example:</p>
+<table>
+  <tr><th>#</th><th>Name</th><th>Trigger</th><th>Pre-wait</th><th>Action</th><th>Continue</th><th>Cancels</th></tr>
+  <tr><td>1</td><td>Question on</td><td>Question goes live</td><td>0</td><td>Recall “2UP w/question”</td><td>Auto-follow</td><td></td></tr>
+  <tr><td>2</td><td>Back to host</td><td>—</td><td>12</td><td>Recall “Fullscreen 1”</td><td>—</td><td></td></tr>
+  <tr><td>3</td><td>Question done</td><td>Question done or cancelled</td><td>0</td><td>Recall “Fullscreen 1”</td><td>—</td><td>1, 2</td></tr>
+</table>
+<h3>Simulate</h3>
+<p>The <b>Simulate Mukana</b> buttons act as if the event happened in Mukana: cues fire and question text and panelists follow. <b>mimoLive is driven for real.</b> The first click switches from Mukana to a sample question (the header shows <b>SIMULATING</b>); Mukana is ignored until you click <b>End simulation</b>. Pick a person from the People table for hand events, or use the sample panelist.</p>
+<h3>Companion / Stream Deck</h3>
+<p>Companion (or any HTTP tool) can fire, continue and stop cues: <code>POST /api/cues/&lt;number&gt;/go</code>, <code>…/continue</code>, <code>…/stop</code>, <code>POST /api/cues/stop-all</code>, <code>POST /api/auto-layers</code> (toggle), <code>POST /api/simulate/&lt;event&gt;</code>. <code>GET /api/cues</code> returns the state for button colours: Auto layers, question live, who is answering, and per cue whether it is running. See the README for the full list.</p>
+
+<h2 id="panelists">Panelists</h2>
+<p><b>5 · Panelists</b> holds who is who, their video sources and lower thirds, and which layout to use for how many are answering. Nothing in it runs by itself: the <a href="#layers" style="color:var(--accent)">cue list</a> decides when, with these actions:</p>
+<table>
+  <tr><th>Cue action</th><th>What it does</th></tr>
+  <tr><td><b>Panel layout (above the line)</b></td><td>The panel for this question: everyone the host approved <b>above the line</b> (and anyone answering), in queue order. Picks the layout for that many, puts their sources into the slots (B, C…; the host stays in A) and recalls the layout's set. For when the host presents the panel before going to each of them. Hands below the line are not shown.</td></tr>
+  <tr><td><b>Answering layout (who answers now)</b></td><td>The same, but only who is <b>answering</b> right now, in a <b>shot</b>: <i>With host</i>, <i>Answering only</i> or <i>Current shot</i> (the last one chosen; back to with host on each new question). When one leaves, the others shift up. Nobody answering: nothing changes. Going from the panel shot to this one always counts as a new shot.</td></tr>
+  <tr><td><b>Panelist lower third</b></td><td>With exactly one panelist who just started: their name and title into the lower third, then live.</td></tr>
+  <tr><td><b>Change shot</b></td><td><i>With host</i>, <i>Answering only</i> or <i>Host only</i>, right away. The first two become the current shot; <b>host only is momentary</b>: the next panelist comes back in the last shot. Put three GO cues for these on Stream Deck buttons.</td></tr>
+  <tr><td><b>Role into slot</b></td><td>The reader (or host) into a slot, e.g. the reader into B while the question is read.</td></tr>
+  <tr><td><b>Source into slot</b></td><td>A fixed source into a slot.</td></tr>
+</table>
+<p>Both layout actions place whoever qualifies <b>when the cue runs</b>; they don't wait. A typical flow: question goes live → host, reader and question → <b>Panel layout</b> → <b>Wait until GO / Continue</b> (or until <i>Panelist starts answering</i>) → the host clicks the first panelist in Mukana, which fires <b>Answering layout</b> → lower third → next panelist…</p>
+<p><b>Roles:</b> the <b>host</b> never counts and is never placed by the layout actions. The <b>reader</b> is placed by <i>Role into slot</i> while the question is read and counts as a panelist only while above the line or answering on that question. <b>Panelists</b> fill the slots when they answer.</p>
+<p><b>Add panelist cues to the cue list</b> adds a working set: <i>Reader into B</i> (question goes live, then your question cue), <i>Question overlay off</i> (first panelist starts answering), a per-panelist timeline (<i>Answering · with host</i> at 0 s → <i>Panelist name</i> at Show after → <i>Go single</i> at 6 s → <i>Panelist name off</i> at Show after + Off after, all auto-continue), <i>Panelists done</i> (last panelist stops: lower third off), and GO cues <i>Shot: with host / answering only / host only</i>. Every panelist the host clicks restarts the timeline for them.</p>
+<table>
+  <tr><th>In Mukana</th><th>On air (with those cues)</th></tr>
+  <tr><td>Nobody → 1 answering</td><td>Question overlay off; source into B, recall the 1-panelist layout; lower third after the delay.</td></tr>
+  <tr><td>A question goes live with a panelist already answering</td><td>Only the question cues run. Panelist cues start when someone is made answering while the question is live.</td></tr>
+  <tr><td>Panelist 1 → panelist 2 (still one)</td><td>Lower third out, B cuts to panelist 2, panelist 2's lower third after the delay. The layout stays.</td></tr>
+  <tr><td>A second panelist joins</td><td>Sources into B and C, recall the 2-panelist layout. The lower third goes off: none with several.</td></tr>
+  <tr><td>A panelist leaves while others stay</td><td>The rest shift up (C → B) and the smaller layout is recalled. No new lower third.</td></tr>
+  <tr><td>Nobody answering any more, or the question ends</td><td>The layout stays; the lower third goes off.</td></tr>
+</table>
+<p>Set it up in <b>5 · Panelists</b>, then click <b>Save panelists</b>:</p>
+<table>
+  <tr><th>Part</th><th>What to enter</th></tr>
+  <tr><td><b>Lower third</b></td><td>The lower third layer (a layer named “Lower Third” is suggested), <b>Show after</b> and <b>Off after</b> in seconds (empty = stays on), and <b>How</b>: <i>Write name + title into it</i> (default) writes the person's name and title into the layer's text inputs while it is off, then takes it live. <i>One variant per person</i> takes the person's own variant live instead. <b>Name goes into</b> / <b>Title goes into</b> pick the inputs; the defaults fit mimoLive's Lower Third layer.</td></tr>
+  <tr><td><b>People</b></td><td>One row per person: Mukana person → <b>role</b> → video source → <b>Name on screen</b> (empty = their Mukana name) and <b>Title</b>. People added from Mukana get their Mukana <b>location</b> as the title to start with, so the lower third shows name + location; type over it for a job title. In variant mode: their variant instead. The role is <b>Panelist</b>, <b>Host</b> or <b>Reader</b> (see Roles above). You pick from everyone who <b>raised a hand on the pre-flight question</b> (its text contains “Pre-flight checklist”). Mukana drops the hands once that question is answered, so the service captures them while it is live or on deck. Sync must be running then. The list is kept after the question moves to Answered. Until anyone has raised a hand, you pick from the panelists <b>online now</b> (hosts excluded). <b>Add all from pre-flight</b> adds everyone on the list. For people who arrive after the pre-flight question is done, ask them to raise a hand on any live question and click <b>Add all from current question</b>: everyone with a hand up on the live question is added (and put on the list). <b>Clear pre-flight list</b> starts over. The variant is suggested when its name starts with the panelist's name. Panelists are matched by their Mukana ID, so a changed display name still matches. Video sources are grouped by type: Zoom, Camera inputs and NDI first.</td></tr>
+  <tr><td><b>Layouts</b></td><td>One row per number of people and <b>shot</b>: the layer set to recall, the layer that holds the slots (suggested from the set's name) and the slots. <b>With host</b>: host in A, people from <code>B</code>. <b>Answering only</b>: people from <code>A</code> (e.g. 1 → “Fullscreen 2”, layer “Full Screen”, slot A). <b>Host only</b>: one row with how many = 0 and just the set to recall. With more people than the largest layout, the largest is used.</td></tr>
+</table>
+<div class="note">The source goes into the slot <b>before</b> the layout is recalled, so it comes up with the right people in it. The service only acts when something changes in Mukana, so the TD can change sources and layouts in mimoLive at any time. A panelist who is not in the table still counts for the layout, but gets no source and no lower third (see the log). Other automations that write into the same lower third, such as an automation layer that copies Zoom names into its variants, overwrite the name and title: remove them from your layer sets when you use this.</div>
+
 <h2 id="live">During the show</h2>
 <table>
   <tr><th>Control</th><th>Use</th></tr>
   <tr><td>Status pill</td><td><b>LIVE · waiting</b>: connected, no question on air. <b>LIVE · question on air</b>: data is being sent. <b>Connecting…</b>: reconnecting (normal after network blips and every hour). <b>Error</b>: see the log.</td></tr>
   <tr><td>Live table</td><td>The current value of every field, as it is sent to mimoLive.</td></tr>
+  <tr><td><b>Auto layers</b></td><td>Turns Mukana-triggered <a href="#layers" style="color:var(--accent)">cues</a> and <a href="#panelists" style="color:var(--accent)">panelists</a> on and off, and stops running cues when turned off. Green = on. GO buttons still work.</td></tr>
   <tr><td><b>Verify against mimoLive</b></td><td>Reads every mapped input back from mimoLive and shows ✅ or ❌. Use it during rehearsal.</td></tr>
   <tr><td><b>Resend all</b></td><td>Pushes all values again, e.g. after reopening the mimoLive document.</td></tr>
-  <tr><td><b>Clear mimoLive</b></td><td>Empties all mapped inputs now. The next change in Mukana fills them again.</td></tr>
+  <tr><td><b>Clear mimoLive</b></td><td>Empties all mapped inputs now, without waiting for layers to go off. The next change in Mukana fills them again.</td></tr>
+  <tr><td colspan="2" class="hint">Red buttons that undo or stop something (<b>Stop</b>, <b>Clear mimoLive</b>, <b>Clear pre-flight list</b>, <b>Remove</b> password, <b>Turn off start at login</b>) need two clicks: the first changes the button to <i>Click again to confirm</i>, the second within 3 seconds goes ahead.</td></tr>
   <tr><td><b>Stop</b></td><td>Stops sync and disconnects from Mukana. mimoLive keeps the last values.</td></tr>
 </table>
 
@@ -212,7 +275,7 @@ When no question is live, Question and Panel fields are cleared; Next Up and Cou
 <div class="note">Firebase bills for downloaded data and concurrent connections, and the Firebase project belongs to Mukana, not to us. The load is about the same as one extra panelist with panelView open, and lower in practice, since panelView also streams chat, likes and DMs.</div>
 
 <h2 id="listen">Change address and port</h2>
-<p>In <b>5 · Service</b>, choose where the web UI listens and on which port, then click <b>Apply</b>:</p>
+<p>In <b>7 · Service</b>, choose where the web UI listens and on which port, then click <b>Apply</b>:</p>
 <table>
   <tr><th>Choice</th><th>Who can open the UI</th></tr>
   <tr><td><code>0.0.0.0</code> — All interfaces</td><td>Everyone on the LAN, and this machine (default)</td></tr>
@@ -222,7 +285,7 @@ When no question is live, Question and Panel fields are cleared; Next Up and Cou
 <p>The service opens the new address first and keeps the old one if that fails (for example if the port is in use), so you can't lock yourself out by mistake. The page then moves to the new address. If <code>HOST</code> or <code>PORT</code> is set as an environment variable, that field is locked in the UI.</p>
 
 <h2 id="background">Run in the background (macOS)</h2>
-<p>The easiest way is section <b>5 · Service</b> in the control panel:</p>
+<p>The easiest way is section <b>7 · Service</b> in the control panel:</p>
 <table>
   <tr><th>Button</th><th>What it does</th></tr>
   <tr><td><b>Start at login</b></td><td>Installs a launchd agent. From the next login the service starts by itself, and it restarts if it stops. The current port, time zone and UI password are kept.</td></tr>
@@ -244,6 +307,7 @@ launchctl unload ~/Library/LaunchAgents/no.mediaevent.mukana-sync.plist</code></
 <h2 id="trouble">Troubleshooting</h2>
 <table>
   <tr><th>Symptom</th><th>Cause / fix</th></tr>
+  <tr><td>A panelist is missing from the Mukana panelist list</td><td>They have not raised a hand on the pre-flight question while sync was running. Ask them to raise it again (the question must be live or on deck), or pick them while they are online.</td></tr>
   <tr><td><code>command not found: brew</code></td><td>Homebrew is not needed. Use the <a href="#install" style="color:var(--accent)">one-command installer</a>.</td></tr>
   <tr><td><code>command not found: npm</code> or <code>node</code></td><td>Node.js is missing or not on the PATH. Run the installer, then open a <b>new</b> Terminal window.</td></tr>
   <tr><td><code>Missing script: "start"</code></td><td>Wrong folder. Run <code>cd ~/mukana-mimolive-sync</code> first, or double-click <b>start-mac.command</b>.</td></tr>

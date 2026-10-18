@@ -5,6 +5,8 @@ import { EventEmitter } from 'node:events';
 import { TokenManager, RtdbStream } from './firebase.js';
 import { MimoLive } from './mimolive.js';
 import { FIELDS } from './config.js';
+import { CueEngine, detectEvents, EVENTS } from './cues.js';
+import { PanelistController } from './panelists.js';
 
 const URL_RE = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+\.[^\s<>"']+)/i;
 
@@ -56,6 +58,49 @@ function hhmm(ts) {
 }
 
 const isVisible = (q) => q && typeof q === 'object' && !q.ts_removed;
+const obj = (x) => (x && typeof x === 'object' ? x : {});
+
+/** Panelists online now (hosts excluded). `online` is authoritative; ts_off can be stale. */
+export function onlinePanelists(online) {
+  return Object.entries(obj(online))
+    .filter(([, p]) => p && p.online !== false && !p.host)
+    .map(([uid, p]) => ({ uid, name: cleanText(p.displayName) || uid, loc: cleanText(p.loc) }));
+}
+
+/**
+ * A question's hands node: { <uid>: true } for hands raised "below the line", and
+ * { array: [{ uid, name, st }] } for the queue "above the line" (st: q queued, a answering, c done).
+ */
+export function handsOf(node) {
+  const n = obj(node);
+  const list = (Array.isArray(n.array) ? n.array : Object.values(obj(n.array))).filter((p) => p?.uid);
+  return {
+    raised: Object.keys(n).filter((k) => n[k] === true),
+    list,
+    queued: list.filter((p) => p.st === 'q').map((p) => String(p.uid)),
+  };
+}
+
+/** Everyone in a hands node, raised or in the queue. */
+export function handsPeople(node, online) {
+  const nameOf = (uid, n) => cleanText(n) || cleanText(obj(online)[uid]?.displayName) || uid;
+  const locOf = (uid, l) => cleanText(l) || cleanText(obj(online)[uid]?.loc);
+  const { raised, list } = handsOf(node);
+  const people = list.map((p) => ({ uid: String(p.uid), name: nameOf(p.uid, p.name), loc: locOf(p.uid, p.loc) }));
+  for (const uid of raised) if (!people.some((p) => p.uid === uid)) people.push({ uid, name: nameOf(uid), loc: locOf(uid) });
+  return people;
+}
+
+/** Keys of questions whose text contains `match` (live, on deck, answered or voting). */
+export function findQuestions(trees, match) {
+  const needle = String(match || '').trim().toLowerCase();
+  if (!needle) return [];
+  const keys = new Set();
+  const test = (k, q) => k && cleanText(q?.comment || q?.question || q?.q).toLowerCase().includes(needle) && keys.add(k);
+  if (trees.liveQ?.key) test(trees.liveQ.key, trees.liveQ);
+  for (const t of [trees.hostOutput, trees.answered, trees.source]) for (const [k, q] of Object.entries(obj(t))) test(k, q);
+  return [...keys];
+}
 const countOf = (tree) => String(Object.values(tree && typeof tree === 'object' ? tree : {}).filter(isVisible).length);
 
 /** Fields that exist with or without a live question: next up + counts. */
@@ -74,7 +119,7 @@ function rundown({ hostOutput, online, source, answered }, activeKey) {
     votingCount: countOf(source), // Mukana "Voting Qs" tab
     onDeckCount: countOf(hostOutput), // Mukana "On Deck" tab (includes the live question)
     answeredCount: countOf(answered), // Mukana "Answered" tab
-    panelistsOnline: String(Object.keys(online && typeof online === 'object' ? online : {}).length),
+    panelistsOnline: String(onlinePanelists(online).length),
   };
 }
 
@@ -83,7 +128,7 @@ export function deriveFields(liveQ, hands, onlineList, hostOutput, sourceList, a
   const lists = { hostOutput, online: onlineList, source: sourceList, answered };
   const empty = Object.fromEntries(FIELDS.map((f) => [f.id, '']));
   if (!liveQ || typeof liveQ !== 'object' || !liveQ.key) {
-    return { active: false, key: null, values: { ...empty, ...rundown(lists, null) } };
+    return { active: false, key: null, answering: [], panel: [], raised: [], queued: [], values: { ...empty, ...rundown(lists, null) } };
   }
 
   // Full record from the panel list has more fields than the compact liveQ node
@@ -92,8 +137,7 @@ export function deriveFields(liveQ, hands, onlineList, hostOutput, sourceList, a
   const { url, rest } = extractUrl(full);
   const cc = liveQ.loc_cc || rec.loc_cc || '';
   const source = rec.source || 'mukana';
-  const arr = hands?.[liveQ.key]?.array;
-  const list = Array.isArray(arr) ? arr : arr && typeof arr === 'object' ? Object.values(arr) : [];
+  const { raised, list, queued: queuedUids } = handsOf(hands?.[liveQ.key]);
   const nameOf = (p) => p?.name || onlineList?.[p?.uid]?.displayName || p?.uid || '';
   const queued = [];
   let activePanelist = '';
@@ -107,6 +151,12 @@ export function deriveFields(liveQ, hands, onlineList, hostOutput, sourceList, a
     active: true,
     key: liveQ.key,
     read: !!liveQ.rd,
+    // Panelists answering now, in Mukana's order. uid identifies them across name changes.
+    answering: list.filter((p) => p?.st === 'a').map((p) => ({ uid: String(p.uid || nameOf(p)), name: nameOf(p) })),
+    // The panel for this question: approved above the line or answering, in queue order.
+    panel: list.filter((p) => p.st === 'q' || p.st === 'a').map((p) => ({ uid: String(p.uid), name: nameOf(p) })),
+    raised, // hands below the line
+    queued: queuedUids, // moved above the line, waiting
     values: {
       ...empty,
       name: cleanText(liveQ.n || rec.displayName),
@@ -133,6 +183,12 @@ export function deriveFields(liveQ, hands, onlineList, hostOutput, sourceList, a
   };
 }
 
+const SAMPLES = [
+  { name: 'Kari Nordmann', loc: 'Tromsø, Norway', cc: 'no', q: 'Simulated question: how will the new harbour plan change everyday life in the city centre?' },
+  { name: 'Jonas Berg', loc: 'Bodø, Norway', cc: 'no', q: 'Simulated question: what is the most important thing we can do this year? https://example.com/survey' },
+  { name: 'Aino Virtanen', loc: 'Oulu, Finland', cc: 'fi', q: 'Simulated question, a bit longer this time, to check that the text fits in the graphic when people write more than one line.' },
+];
+
 export class SyncEngine extends EventEmitter {
   constructor(getConfig, onRefreshToken) {
     super();
@@ -143,8 +199,14 @@ export class SyncEngine extends EventEmitter {
     this.trees = { liveQ: null, hands: null, online: null, hostOutput: null, source: null, answered: null };
     this.current = deriveFields(null);
     this.lastSent = new Map(); // targetKey -> value
-    this.sending = false;
+    this.sending = null; // promise of the running push loop
+    this.looping = false;
     this.pending = false;
+    this.loaded = new Set(); // streams that delivered their first snapshot
+    this.clearing = false;
+    this.cues = new CueEngine(this);
+    this.sim = null; // { trees, n } while simulating: replaces the Mukana input
+    this.panelists = new PanelistController(this);
     this.log = [];
     this.stats = { updates: 0, errors: 0, lastUpdate: null };
     this.user = null;
@@ -197,6 +259,7 @@ export class SyncEngine extends EventEmitter {
       const s = new RtdbStream({ databaseURL: cfg.mukana.databaseURL, path, getToken });
       s.on('value', (tree) => {
         this.trees[name] = tree;
+        this.loaded.add(name);
         this.recompute();
       });
       s.on('status', (st, detail) => {
@@ -222,68 +285,207 @@ export class SyncEngine extends EventEmitter {
     this.streams = {};
     this.tokens?.stop();
     this.trees = { liveQ: null, hands: null, online: null, hostOutput: null, source: null, answered: null };
+    this.loaded.clear();
+    this.cues.reset();
+    this.panelists.reset();
     this.addLog('info', 'Stopped');
   }
 
+  /** All streams have delivered their first snapshot. */
+  ready() {
+    return !!this.sim || (this.running && this.loaded.size === Object.keys(this.trees).length);
+  }
+
+  derive() {
+    const t = this.sim?.trees || this.trees;
+    const d = deriveFields(t.liveQ, t.hands, t.online, t.hostOutput, t.source, t.answered);
+    d.countable = this.panelists.countable(d.answering); // answering, host excluded (roles)
+    return d;
+  }
+
   recompute() {
-    const prevKey = this.current.key;
-    this.current = deriveFields(this.trees.liveQ, this.trees.hands, this.trees.online, this.trees.hostOutput, this.trees.source, this.trees.answered);
-    if (prevKey !== this.current.key) {
+    this.panelists.captureRoster(this.trees); // real Mukana only
+    if (this.sim && !this.sim.recomputing) return; // Mukana is ignored while simulating
+    const prev = this.current;
+    this.current = this.derive();
+    if (prev.key !== this.current.key) {
       this.addLog('info', this.current.active ? `Live question: ${this.current.values.name} – "${this.current.values.question.slice(0, 60)}"` : 'No live question – clearing');
     }
+    const events = this.cues.primed ? detectEvents(prev, this.current) : [];
+    if (events.length) this.addLog('info', `Mukana${this.sim ? ' (simulated)' : ''}: ${events.map((e) => EVENTS[e]).join(' · ')}`);
+    if (!this.cues.primed && this.ready()) this.cues.prime();
+    else this.cues.beforePush(prev, events);
+    if (!this.panelists.primed && this.ready()) this.panelists.prime();
+    this.push();
+    if (events.length) this.cues.onEvents(events);
+  }
+
+  // ---------- simulation ----------
+
+  /**
+   * Simulate a Mukana event. While simulating, the service runs on a sample question instead of
+   * Mukana, so cues, question text and panelists all behave as in a show (mimoLive is driven).
+   */
+  simulate(event, { uid } = {}) {
+    if (!EVENTS[event]) throw new Error(`Unknown event ${event}`);
+    if (event === 'answeringChange') throw new Error('Simulate “Panelist starts answering” or “Last panelist stops answering”: the change follows from those');
+    if (!this.sim) this.startSim();
+    const t = this.sim.trees;
+    const key = t.liveQ?.key;
+    const needQ = !['questionLive', 'questionNext'].includes(event);
+    if (needQ && !key && event !== 'questionDone') throw new Error('Simulate “Question goes live” first');
+    const person = () => {
+      const c = (this.getConfig().panelists?.cast || []).find((x) => x.uid === uid);
+      const p = { uid: uid || 'sim-guest', name: c?.screenName || c?.name || 'Sample Panelist' };
+      t.online = { ...t.online, [p.uid]: { displayName: p.name, online: true, loc: 'Tromsø, Norway' } };
+      return p;
+    };
+    const node = () => (t.hands[key] ||= { array: [] });
+    const entry = (p, st) => {
+      const n = node();
+      delete n[p.uid];
+      n.array = [...(n.array || []).filter((x) => x.uid !== p.uid), { uid: p.uid, name: p.name, st, loc: 'Tromsø, Norway' }];
+    };
+    switch (event) {
+      case 'questionLive':
+      case 'questionNext': {
+        const n = ++this.sim.n;
+        const s = SAMPLES[(n - 1) % SAMPLES.length];
+        const k = `SIM-${n}`;
+        t.liveQ = { key: k, n: s.name, l: s.loc, q: s.q, tag: 'Simulated', v: -3, loc_cc: s.cc };
+        t.hostOutput = { [k]: { displayName: s.name, comment: s.q, city: s.loc, tag: 'Simulated', status: 'answering', orderID: 1, source: 'mukana' } };
+        t.hands = { [k]: { array: [] } };
+        break;
+      }
+      case 'questionDone':
+        t.liveQ = null;
+        t.hostOutput = {};
+        break;
+      case 'doneReading':
+        t.liveQ = { ...t.liveQ, rd: true };
+        break;
+      case 'handRaised': {
+        const p = person();
+        node()[p.uid] = true;
+        break;
+      }
+      case 'aboveLine':
+        entry(person(), 'q');
+        break;
+      case 'answeringStart':
+        entry(person(), 'a');
+        break;
+      case 'answeringEnd':
+        node().array = (node().array || []).map((x) => (x.st === 'a' ? { ...x, st: 'c' } : x));
+        break;
+      case 'hostNotes':
+        t.hostOutput = { ...t.hostOutput, [key]: { ...t.hostOutput[key], hostNotes: `Simulated host note ${new Date().toLocaleTimeString('en-GB')}` } };
+        break;
+    }
+    this.sim.recomputing = true;
+    try {
+      this.recompute();
+    } finally {
+      this.sim.recomputing = false;
+    }
+    return this.status();
+  }
+
+  /** Switch the input to an empty simulated Mukana without firing anything. */
+  startSim() {
+    this.sim = { n: 0, trees: { liveQ: null, hands: {}, online: { ...(this.trees.online || {}) }, hostOutput: {}, source: {}, answered: {} } };
+    this.addLog('info', 'Simulation started: Mukana is ignored until you end it');
+    this.current = this.derive();
+    this.cues.prime();
+    this.panelists.prime();
     this.push();
   }
 
-  /** Push changed values to mimoLive. Coalesces bursts. */
-  async push(force = false) {
+  endSim() {
+    if (!this.sim) return this.status();
+    this.sim = null;
+    this.addLog('info', 'Simulation ended: back to Mukana');
+    this.current = this.derive();
+    if (this.ready()) {
+      this.cues.prime();
+      this.panelists.prime();
+    } else {
+      this.cues.reset();
+      this.panelists.reset();
+    }
+    this.push();
+    return this.status();
+  }
+
+  /** Value sent to a mapping target: held by layer control during a transition, else current. */
+  valueFor(t) {
+    const held = this.clearing ? undefined : this.cues.held(t);
+    return held !== undefined ? held : this.current.values[t.field] ?? '';
+  }
+
+  /** Push changed values to mimoLive. Coalesces bursts. Resolves when everything queued is sent. */
+  push(force = false) {
     if (force) this.lastSent.clear();
-    if (this.sending) {
-      this.pending = true;
-      return;
-    }
-    this.sending = true;
+    this.pending = true;
+    // `looping` is cleared in the same tick the loop ends, so an update can never fall in between.
+    if (!this.looping) this.sending = this.pushLoop();
+    return this.sending;
+  }
+
+  async pushLoop() {
+    this.looping = true;
     try {
-      do {
-        this.pending = false;
-        const cfg = this.getConfig();
-        const ml = new MimoLive(cfg.mimolive);
-        const docId = cfg.mimolive.documentId;
-        if (!docId) break;
-        const jobs = [];
-        for (const t of cfg.targets) {
-          if (!t.id || !t.key || !t.field) continue;
-          const value = this.current.values[t.field] ?? '';
-          const tk = `${t.kind}:${t.id}:${t.key}`;
-          // Several fields may share a target; last one wins, so dedupe by target key per round
-          if (this.lastSent.get(tk) === value) continue;
-          jobs.push(
-            ml
-              .setInput({ documentId: docId, kind: t.kind, id: t.id, key: t.key, value })
-              .then(() => {
-                this.lastSent.set(tk, value);
-                this.stats.updates++;
-                this.stats.lastUpdate = Date.now();
-              })
-              .catch((e) => {
-                this.stats.errors++;
-                this.lastSent.delete(tk);
-                this.addLog('error', `mimoLive ${t.field} → ${t.kind} ${t.id.slice(0, 8)}: ${e.message}`);
-              })
-          );
-        }
-        if (jobs.length) await Promise.all(jobs);
-        this.emit('status');
-      } while (this.pending);
+      while (this.pending) {
+        await this.pushOnce();
+      }
     } finally {
-      this.sending = false;
+      this.looping = false;
     }
+  }
+
+  /** Send every value that changed since it was last sent. */
+  async pushOnce() {
+    this.pending = false;
+    const cfg = this.getConfig();
+    const ml = new MimoLive(cfg.mimolive);
+    const docId = cfg.mimolive.documentId;
+    if (!docId) return;
+    const jobs = [];
+    for (const t of cfg.targets) {
+      if (!t.id || !t.key || !t.field) continue;
+      const value = this.valueFor(t);
+      const tk = `${t.kind}:${t.id}:${t.key}`;
+      // Several fields may share a target; last one wins, so dedupe by target key per round
+      if (this.lastSent.get(tk) === value) continue;
+      jobs.push(
+        ml
+          .setInput({ documentId: docId, kind: t.kind, id: t.id, key: t.key, value })
+          .then(() => {
+            this.lastSent.set(tk, value);
+            this.stats.updates++;
+            this.stats.lastUpdate = Date.now();
+          })
+          .catch((e) => {
+            this.stats.errors++;
+            this.lastSent.delete(tk);
+            this.addLog('error', `mimoLive ${t.field} → ${t.kind} ${t.id.slice(0, 8)}: ${e.message}`);
+          })
+      );
+    }
+    if (jobs.length) await Promise.all(jobs);
+    this.emit('status');
   }
 
   async clear() {
     const saved = this.current;
     this.current = deriveFields(null);
-    await this.push(true);
-    this.current = saved;
+    this.clearing = true;
+    try {
+      await this.push(true);
+    } finally {
+      this.current = saved;
+      this.clearing = false;
+    }
   }
 
   status() {
@@ -294,6 +496,13 @@ export class SyncEngine extends EventEmitter {
       streams: Object.fromEntries(Object.entries(this.streams).map(([k, s]) => [k, s.status])),
       current: this.current,
       stats: this.stats,
+      autoLayers: !!this.getConfig().layerControl?.enabled,
+      cues: this.cues.status(),
+      simulating: !!this.sim,
+      panelists: this.panelists.status(),
+      // Candidates for the panelists table: hands on the pre-flight question, else online now
+      online: onlinePanelists(this.trees.online),
+      roster: this.panelists.roster(),
       log: this.log.slice(-60),
     };
   }

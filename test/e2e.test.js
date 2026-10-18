@@ -8,7 +8,8 @@ import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
-import { deriveFields, extractUrl, cleanText } from '../src/sync.js';
+import { deriveFields, extractUrl, cleanText, onlinePanelists, handsPeople, findQuestions } from '../src/sync.js';
+import { detectEvents, migrateRules, addPanelistCues } from '../src/cues.js';
 import { applyEvent } from '../src/firebase.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -57,6 +58,13 @@ assert.equal(d2.values.nextQuestionFull, 'Next up https://x.no');
 assert.equal(d2.values.votingCount, '2');
 assert.equal(d2.values.answeredCount, '1');
 assert.equal(d2.values.panelistsOnline, '2');
+// online list: `online` flag decides (ts_off can be stale), hosts excluded
+assert.deepEqual(onlinePanelists({ a: { displayName: 'A', online: true, ts_off: 5, loc: 'Oslo' }, b: { displayName: 'B', online: false }, h: { displayName: 'Host', online: true, host: true }, c: { displayName: 'C' } }), [{ uid: 'a', name: 'A', loc: 'Oslo' }, { uid: 'c', name: 'C', loc: '' }]);
+// both hands formats
+// location from the hand, else from the online list
+assert.deepEqual(handsPeople({ array: [{ uid: 'u1', name: 'Ola', st: 'q', loc: 'Tromsø' }, null, { uid: 'u2', st: 'a' }] }, { u2: { displayName: 'Per', loc: 'Bodø' } }), [{ uid: 'u1', name: 'Ola', loc: 'Tromsø' }, { uid: 'u2', name: 'Per', loc: 'Bodø' }]);
+assert.deepEqual(handsPeople({ u3: true }, { u3: { displayName: 'Anne' } }), [{ uid: 'u3', name: 'Anne', loc: '' }]);
+assert.deepEqual(findQuestions({ liveQ: null, hostOutput: { k1: { comment: 'x' } }, answered: { k2: { comment: '***Pre-flight checklist item: raise hands*' } } }, 'pre-flight CHECKLIST'), ['k2']);
 const d3 = deriveFields(null, null, null, host);
 assert.equal(d3.values.name, '');
 assert.equal(d3.values.nextName, 'Siri', 'rundown available without live question');
@@ -85,6 +93,45 @@ assert.equal(d3.values.nextName, 'Siri', 'rundown available without live questio
   assert.match(x, /<key>UI_PASSWORD<\/key><string>p&lt;&amp;&gt;<\/string>/);
   assert.match(x, /<key>MMS_LAUNCHD<\/key><string>1<\/string>/);
   assert.match(x, /<key>KeepAlive<\/key><true\/>/);
+}
+// Mukana events
+{
+  const base = deriveFields({ key: 'Q1', n: 'A', q: 'x' }, { Q1: { u9: true, array: [{ uid: 'u1', st: 'q' }] } }, {}, { Q1: {} });
+  assert.deepEqual(base.raised, ['u9']);
+  assert.deepEqual(base.queued, ['u1']);
+  assert.deepEqual(base.panel.map((p) => p.uid), ['u1'], 'panel = above the line (not the raised hand below it)');
+  const next = deriveFields({ key: 'Q1', n: 'A', q: 'x', rd: true }, { Q1: { u9: true, u8: true, array: [{ uid: 'u1', st: 'a' }, { uid: 'u7', st: 'q' }] } }, {}, { Q1: { hostNotes: 'Note' } });
+  assert.deepEqual(detectEvents(base, next).sort(), ['aboveLine', 'answeringChange', 'answeringStart', 'doneReading', 'handRaised', 'hostNotes']);
+  const stop = deriveFields({ key: 'Q1', n: 'A', q: 'x', rd: true }, { Q1: { array: [{ uid: 'u1', st: 'c' }] } }, {}, { Q1: { hostNotes: 'Note' } });
+  assert.deepEqual(detectEvents(next, stop), ['answeringChange', 'answeringEnd']);
+  // roles: the host answering does not count
+  const hostOnly = { ...next, countable: [] };
+  assert.ok(!detectEvents(base, hostOnly).includes('answeringStart'), 'host does not count');
+  assert.deepEqual(detectEvents(next, deriveFields(null)), ['questionDone', 'answeringChange', 'answeringEnd'], 'question ends while answering');
+  assert.deepEqual(detectEvents(deriveFields(null), base), ['questionLive'], 'a new question with hands up fires no hand events');
+  assert.deepEqual(detectEvents(base, deriveFields({ key: 'Q2', n: 'B', q: 'y' })), ['questionLive', 'questionNext']);
+  assert.deepEqual(detectEvents(base, deriveFields(null)), ['questionDone']);
+  // old rules → cues
+  const m = migrateRules([{ trigger: 'question', action: 'layerSet', onSetId: 'ON', offSetId: 'OFF', offAfterSec: 12, label: 'Q' }]);
+  assert.deepEqual(m.map((c) => [c.name, c.trigger.event || c.trigger.type, c.preWait, c.action.type, c.action.setId, c.continue]), [
+    ['Q on', 'questionLive', 0, 'recallSet', 'ON', 'auto-follow'],
+    ['Q auto-off', 'none', 12, 'recallSet', 'OFF', 'none'],
+    ['Q done', 'questionDone', 0, 'recallSet', 'OFF', 'none'],
+  ]);
+  assert.deepEqual(m[2].cancels, [m[0].id, m[1].id]);
+  // default panelist cues: one timeline per panelist + shot buttons
+  const pc = addPanelistCues([], { panelists: { ltLayerId: 'LT', ltDelaySec: 3, ltOffAfterSec: 8, layouts: [{ count: 1, layerId: 'L2', setId: 'S2', slots: ['B'] }, { count: 1, shot: 'solo', layerId: 'LF', setId: 'SF', slots: ['A'] }, { count: 0, shot: 'hostOnly', setId: 'SH' }] } });
+  assert.deepEqual(pc.map((c) => [c.name, c.preWait, c.continue]), [
+    ['Reader into B', 0, 'none'],
+    ['Answering · with host', 0, 'auto-continue'],
+    ['Panelist name', 3, 'auto-continue'],
+    ['Go single', 6, 'auto-continue'],
+    ['Panelist name off', 11, 'none'],
+    ['Panelists done', 0, 'none'],
+    ['Shot: with host', 0, 'none'],
+    ['Shot: answering only', 0, 'none'],
+    ['Shot: host only', 0, 'none'],
+  ]);
 }
 console.log('✓ unit');
 
@@ -119,10 +166,56 @@ const sse = (p, type, pth, data) => sseClients[p]?.write(`event: ${type}\ndata: 
 
 const mimoCalls = [];
 const mimoState = {}; // id -> input-values
+const mimoLive = {}; // layer id -> live-state
+const mimoEvents = []; // ordered log of updates and live/off actions
+const OUT_MS = 300; // mock out-transition
+const goOff = (id) => {
+  if (mimoLive[id] !== 'live') return;
+  mimoLive[id] = 'shutdown';
+  setTimeout(() => { mimoLive[id] = 'off'; mimoEvents.push({ t: Date.now(), type: 'isOff', id }); }, OUT_MS);
+};
+const LAYER_SETS = {
+  // L-BG is live in both sets (like a background): it must never be switched off or waited for
+  'SET-ON': { name: 'Question on', layers: [{ 'layer-id': 'L-SET', action: 'live' }, { 'layer-id': 'L-BG', action: 'live' }] },
+  'SET-OFF': { name: 'Question off', layers: [{ 'layer-id': 'L-SET', action: 'off' }, { 'layer-id': 'L-BG', action: 'live' }] },
+  'SET-2UP': { name: '2 UP', layers: [{ 'layer-id': 'L-2UP', action: 'live' }, { 'layer-id': 'L-3UP', action: 'off' }] },
+  'SET-3UP': { name: '3 UP', layers: [{ 'layer-id': 'L-3UP', action: 'live' }, { 'layer-id': 'L-2UP', action: 'off' }] },
+  'SET-FULL': { name: 'Fullscreen 2', layers: [{ 'layer-id': 'L-FULL', action: 'live' }] },
+  'SET-HOST': { name: 'Fullscreen 1', layers: [{ 'layer-id': 'L-HOSTCAM', action: 'live' }] },
+};
 const mimo = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
+  const vact = u.pathname.match(/\/layers\/([^/]+)\/variants\/([^/]+)\/setLive$/);
+  if (vact) {
+    mimoEvents.push({ t: Date.now(), type: 'vlive', id: vact[2] });
+    mimoLive[vact[1]] = 'live';
+    return res.end('{"data":{}}');
+  }
+  if (u.pathname.endsWith('/variants'))
+    return res.end(JSON.stringify({ data: ['V-OLA', 'V-PER', 'V-ANNE'].map((id) => ({ id, type: 'variants', attributes: { name: id } })) }));
+  const act = u.pathname.match(/\/layers\/([^/]+)\/(setLive|setOff)$/);
+  if (act) {
+    const [, id, a] = act;
+    mimoEvents.push({ t: Date.now(), type: a === 'setLive' ? 'live' : 'off', id });
+    if (a === 'setLive') mimoLive[id] = 'live';
+    else goOff(id);
+    return res.end('{"data":{}}');
+  }
+  if (u.pathname.endsWith('/layer-sets'))
+    return res.end(JSON.stringify({ data: Object.entries(LAYER_SETS).map(([id, x]) => ({ id, type: 'layer-sets', attributes: x })) }));
+  const sig = u.pathname.match(/\/layers\/([^/]+)\/signals\/([^/]+)$/);
+  if (sig) {
+    mimoEvents.push({ t: Date.now(), type: 'signal', id: sig[1], value: sig[2] });
+    return res.end('{"data":{}}');
+  }
+  const recall = u.pathname.match(/\/layer-sets\/([^/]+)\/recall$/);
+  if (recall) {
+    mimoEvents.push({ t: Date.now(), type: 'recall', id: recall[1] });
+    for (const l of LAYER_SETS[recall[1]].layers) l.action === 'live' ? (mimoLive[l['layer-id']] = 'live') : goOff(l['layer-id']);
+    return res.end('{"data":{}}');
+  }
   const elId = u.pathname.match(/\/(?:layers|sources)\/([^/]+)$/)?.[1];
-  if (elId && !u.searchParams.has('update')) return res.end(JSON.stringify({ data: { id: elId, attributes: { name: 'El ' + elId, 'input-values': mimoState[elId] || {} } } }));
+  if (elId && !u.searchParams.has('update')) return res.end(JSON.stringify({ data: { id: elId, attributes: { name: 'El ' + elId, 'live-state': mimoLive[elId] || 'off', 'input-values': mimoState[elId] || {} } } }));
   res.setHeader('Content-Type', 'application/vnd.api+json');
   if (u.pathname === '/api/v1/documents') return res.end(JSON.stringify({ data: [{ id: '1185605207', type: 'documents', attributes: { name: 'Show.tvshow' } }] }));
   if (u.pathname.endsWith('/layers') && !u.searchParams.has('update'))
@@ -132,6 +225,7 @@ const mimo = http.createServer((req, res) => {
   if (u.searchParams.has('update')) {
     const upd = JSON.parse(u.searchParams.get('update'));
     mimoCalls.push({ path: u.pathname, update: upd });
+    mimoEvents.push({ t: Date.now(), type: 'update', id: elId, key: Object.keys(upd['input-values'])[0], value: Object.values(upd['input-values'])[0] });
     if (elId) mimoState[elId] = { ...(mimoState[elId] || {}), ...upd['input-values'] };
     return res.end('{"data":{}}');
   }
@@ -204,6 +298,7 @@ try {
       { field: 'url', kind: 'source', id: 'S-QR', key: 'tvGroup_Content__QR_Content' },
     ],
   });
+  assert.ok(cfg.json.mukana, JSON.stringify(cfg.json));
   assert.equal(cfg.json.mukana.refreshToken, undefined);
   assert.equal(cfg.json.mukana.hasRefreshToken, true);
   const pwCfg = await api('POST', '/api/config', { mimolive: { password: 'pw1' } });
@@ -259,6 +354,479 @@ try {
   mimoCalls.length = 0;
   await api('POST', '/api/push');
   assert.equal(mimoCalls.length, 4);
+
+  // ---------- automatic layer control ----------
+  const TXT = 'tvGroup_Content__Text_TypeMultiline';
+  const targets = (await api('GET', '/api/config')).json.targets;
+  const lcTargets = [...targets, { field: 'name', kind: 'layer', id: 'L-LT', key: TXT }, { field: 'name', kind: 'layer', id: 'L-SET', key: TXT }];
+  const ev = (type, id, value) => mimoEvents.findIndex((e) => e.type === type && e.id === id && (value === undefined || e.value === value));
+  const evAt = (type, id, value) => mimoEvents[ev(type, id, value)];
+  const els2 = await api('GET', `/api/mimolive/elements?host=127.0.0.1&port=${mimoPort}&doc=1185605207`);
+  assert.equal(els2.json.layerSets.length, 6);
+  assert.deepEqual(els2.json.layerSets[0].layers, [{ id: 'L-SET', action: 'live' }, { id: 'L-BG', action: 'live' }]);
+
+  const cueCfg = (cues, enabled = true) => api('POST', '/api/config', { layerControl: { enabled, cues } });
+  const mk = (id, name, trigger, action, more = {}) => ({ id, name, trigger: typeof trigger === 'string' ? { type: 'mukana', event: trigger } : trigger, preWait: 0, action, continue: 'none', cancels: [], ...more });
+
+  // ---- question cues: text first, then live
+  await api('POST', '/api/config', { targets: lcTargets });
+  const c1 = await cueCfg([mk('c1', 'LT on', 'questionLive', { type: 'layerLive', layerId: 'L-LT' }), mk('c2', 'LT done', 'questionDone', { type: 'layerOff', layerId: 'L-LT' })]);
+  assert.equal(c1.json.layerControl.cues.length, 2);
+  mimoEvents.length = 0;
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q1', n: 'Kari', q: 'Første', v: 1 });
+  await waitFor(() => ev('live', 'L-LT') >= 0, 'layer live');
+  assert.ok(ev('update', 'L-LT', 'Kari') >= 0 && ev('update', 'L-LT', 'Kari') < ev('live', 'L-LT'), 'text before live');
+
+  // next question: the cue's layer goes out, gets the new text, comes back
+  mimoEvents.length = 0;
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q2', n: 'Nils', q: 'Andre', v: 1 });
+  await waitFor(() => ev('live', 'L-LT') >= 0, 'layer live again');
+  assert.ok(ev('off', 'L-LT') >= 0, 'went off first');
+  assert.equal(ev('update', 'L-LT', ''), -1, 'never blanked during swap');
+  assert.ok(evAt('update', 'L-LT', 'Nils').t >= evAt('isOff', 'L-LT').t, 'new text only after the layer is off');
+  assert.ok(ev('update', 'L-NAME', 'Nils') >= 0 && ev('update', 'L-NAME', 'Nils') < ev('isOff', 'L-LT'), 'layers no cue took live update at once');
+
+  // done / cancelled: off, wait, then clear
+  mimoEvents.length = 0;
+  sse('qs_liveQ/ohtest', 'put', '/', null);
+  await waitFor(() => ev('update', 'L-LT', '') >= 0, 'text cleared');
+  assert.ok(evAt('update', 'L-LT', '').t >= evAt('isOff', 'L-LT').t, 'cleared only after off');
+
+  // operator takes the layer off by hand: a change in the same question does not bring it back
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q3', n: 'Siv', q: 'Tredje', v: 1 });
+  await waitFor(() => mimoLive['L-LT'] === 'live', 'Q3 live');
+  mimoLive['L-LT'] = 'off';
+  mimoEvents.length = 0;
+  sse('qs_liveQ/ohtest', 'patch', '/', { v: 7, n: 'Siv Elin' });
+  await waitFor(() => ev('update', 'L-LT', 'Siv Elin') >= 0, 'live text update');
+  await sleep(200);
+  assert.ok(!mimoEvents.some((e) => ['live', 'off'].includes(e.type)), 'manual off is respected');
+  sse('qs_liveQ/ohtest', 'put', '/', null);
+  await sleep(300);
+
+  // ---- chains: auto-follow with pre-wait, cancels, auto-continue, GO, stop
+  await cueCfg([
+    mk('a', 'Set on', 'questionLive', { type: 'recallSet', setId: 'SET-ON' }, { continue: 'auto-follow' }),
+    mk('b', 'Back', { type: 'none' }, { type: 'recallSet', setId: 'SET-OFF' }, { preWait: 1 }),
+    mk('c', 'Done', 'questionDone', { type: 'recallSet', setId: 'SET-OFF' }, { cancels: ['a', 'b'] }),
+    mk('d', 'Pair A', { type: 'go' }, { type: 'layerLive', layerId: 'L-X' }, { continue: 'auto-continue' }),
+    mk('e', 'Pair B', { type: 'none' }, { type: 'layerLive', layerId: 'L-Y' }, { continue: 'auto-follow' }),
+    mk('f', 'Hold', { type: 'none' }, { type: 'wait', seconds: 0.3 }, { continue: 'auto-follow' }),
+    mk('g', 'Signal', { type: 'none' }, { type: 'signal', layerId: 'L-Y', signalId: 'tvGroup_Control__Go_TypeSignal' }),
+    mk('h', 'Text', { type: 'go' }, { type: 'writeText', kind: 'layer', targetId: 'L-Y', key: TXT, value: 'Hi {name}' }),
+  ]);
+  mimoEvents.length = 0;
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q4', n: 'Tor', q: 'Fjerde', v: 1 });
+  await waitFor(() => ev('recall', 'SET-ON') >= 0, 'set on');
+  const run1 = (await api('GET', '/api/cues')).json;
+  assert.equal(run1.questionLive, true);
+  assert.equal(run1.cues[1].phase, 'waiting', 'cue 2 in its pre-wait');
+  assert.ok(run1.cues[1].endsAt > Date.now());
+  await waitFor(() => ev('recall', 'SET-OFF') >= 0, 'auto-follow after pre-wait', 2500);
+  assert.ok(evAt('recall', 'SET-OFF').t - evAt('recall', 'SET-ON').t >= 900, 'pre-wait respected');
+  assert.ok(evAt('update', 'L-SET', 'Tor').t <= evAt('recall', 'SET-ON').t, 'question text before the set');
+  // question done before the pre-wait ends: "Done" cancels "Back"
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q5', n: 'Una', q: 'Femte', v: 1 });
+  await waitFor(() => (mimoEvents.filter((e) => e.type === 'recall' && e.id === 'SET-ON').length === 2), 'set on again');
+  mimoEvents.length = 0;
+  sse('qs_liveQ/ohtest', 'put', '/', null);
+  await sleep(1400);
+  assert.equal(mimoEvents.filter((e) => e.type === 'recall' && e.id === 'SET-OFF').length, 1, 'Back was cancelled, only Done recalled');
+  // GO by number from Companion: auto-continue starts the next cue together, then auto-follow + wait + signal
+  mimoEvents.length = 0;
+  await api('POST', '/api/cues/4/go');
+  await waitFor(() => ev('signal', 'L-Y') >= 0, 'chain to signal');
+  assert.ok(Math.abs(evAt('live', 'L-X').t - evAt('live', 'L-Y').t) < 150, 'auto-continue: together');
+  assert.ok(evAt('signal', 'L-Y').t - evAt('live', 'L-Y').t >= 250, 'wait cue between');
+  assert.equal(evAt('signal', 'L-Y').value, 'tvGroup_Control__Go_TypeSignal');
+  // text cue with {field} from the live question
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q9', n: 'Mari', q: 'Niende', v: 1 });
+  await sleep(300);
+  mimoEvents.length = 0;
+  await api('POST', '/api/cues/h/go');
+  await waitFor(() => ev('update', 'L-Y', 'Hi Mari') >= 0, 'text cue');
+  // restart: GO twice → one recall; stop → none
+  sse('qs_liveQ/ohtest', 'put', '/', null);
+  await sleep(300);
+  mimoEvents.length = 0;
+  await api('POST', '/api/cues/2/go');
+  await sleep(300);
+  await api('POST', '/api/cues/2/go');
+  await sleep(1300);
+  assert.equal(mimoEvents.filter((e) => e.type === 'recall').length, 1, 'fired twice = restarted, ran once');
+  mimoEvents.length = 0;
+  await api('POST', '/api/cues/2/go');
+  await sleep(200);
+  assert.equal((await api('POST', '/api/cues/2/stop')).json[1].running, false);
+  await api('POST', '/api/cues/2/go');
+  await sleep(200);
+  await api('POST', '/api/cues/stop-all');
+  await sleep(1200);
+  assert.equal(mimoEvents.filter((e) => e.type === 'recall').length, 0, 'stopped cues do nothing');
+  assert.equal((await api('POST', '/api/cues/99/go')).status, 400);
+  // Auto layers off (Companion toggle): Mukana does not fire cues, GO still works
+  assert.equal((await api('POST', '/api/auto-layers', { enabled: false })).json.autoLayers, false);
+  mimoEvents.length = 0;
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q10', n: 'Ivar', q: 'Tiende', v: 1 });
+  await sleep(400);
+  assert.equal(ev('recall', 'SET-ON'), -1, 'no Mukana cues with Auto layers off');
+  await api('POST', '/api/cues/1/go');
+  await waitFor(() => ev('recall', 'SET-ON') >= 0, 'GO works with Auto layers off');
+  await api('POST', '/api/cues/stop-all');
+  assert.equal((await api('POST', '/api/auto-layers')).json.autoLayers, true, 'toggle');
+  sse('qs_liveQ/ohtest', 'put', '/', null);
+  await sleep(300);
+
+  // ---- wait can pause until GO / Continue / a Mukana event (optionally with a timeout)
+  await cueCfg([
+    mk('w1', 'Hold', { type: 'go' }, { type: 'wait', until: 'go', seconds: 0 }, { continue: 'auto-follow' }),
+    mk('w2', 'After hold', { type: 'none' }, { type: 'layerLive', layerIds: ['L-Z'] }),
+    mk('w3', 'Hold for hands', 'questionLive', { type: 'wait', until: 'answeringStart', seconds: 0 }, { continue: 'auto-follow' }),
+    mk('w4', 'After hands', { type: 'none' }, { type: 'layerLive', layerIds: ['L-W'] }),
+    mk('w5', 'Hold max', { type: 'go' }, { type: 'wait', until: 'go', seconds: 0.4 }, { continue: 'auto-follow' }),
+    mk('w6', 'After timeout', { type: 'none' }, { type: 'layerLive', layerIds: ['L-V'] }),
+  ]);
+  mimoEvents.length = 0;
+  await api('POST', '/api/cues/w1/go');
+  await sleep(300);
+  const held = (await api('GET', '/api/cues')).json.cues[0];
+  assert.equal(held.phase, 'paused');
+  assert.equal(held.until, 'go');
+  assert.equal(ev('live', 'L-Z'), -1, 'paused: next cue not started');
+  await api('POST', '/api/cues/w1/go'); // GO on a paused cue continues it
+  await waitFor(() => ev('live', 'L-Z') >= 0, 'GO continues');
+  assert.equal((await api('POST', '/api/cues/w1/continue')).status, 400, 'not paused any more');
+  mimoEvents.length = 0;
+  await api('POST', '/api/cues/1/go');
+  await sleep(200);
+  await api('POST', '/api/cues/1/continue'); // Companion
+  await waitFor(() => ev('live', 'L-Z') >= 0, 'Companion continue');
+  mimoEvents.length = 0;
+  await api('POST', '/api/cues/w1/go');
+  await sleep(200);
+  await api('POST', '/api/cues/w1/stop');
+  await sleep(300);
+  assert.equal(ev('live', 'L-Z'), -1, 'stopped while paused: nothing follows');
+  // timeout
+  mimoEvents.length = 0;
+  const t0 = Date.now();
+  await api('POST', '/api/cues/w5/go');
+  await waitFor(() => ev('live', 'L-V') >= 0, 'timeout continues');
+  assert.ok(Date.now() - t0 >= 350, 'after the timeout');
+  // a Mukana event releases it
+  mimoEvents.length = 0;
+  sse('panel_hands/ohtest', 'put', '/Q11', { array: [{ uid: 'u1', st: 'q', name: 'Ola' }] });
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q11', n: 'Elf', q: 'Ellevte', v: 1 });
+  await sleep(400);
+  assert.equal((await api('GET', '/api/cues')).json.cues[2].phase, 'paused', 'held until a panelist answers');
+  assert.equal(ev('live', 'L-W'), -1);
+  sse('panel_hands/ohtest', 'put', '/Q11', { array: [{ uid: 'u1', st: 'a', name: 'Ola' }] });
+  await waitFor(() => ev('live', 'L-W') >= 0, 'Mukana event continues');
+  sse('panel_hands/ohtest', 'put', '/Q11', null);
+  sse('qs_liveQ/ohtest', 'put', '/', null);
+  await sleep(300);
+
+  // ---- simulation drives everything like Mukana would (and Mukana is ignored meanwhile)
+  await cueCfg([mk('s1', 'Q on', 'questionLive', { type: 'layerLive', layerId: 'L-LT' }), mk('s2', 'Hands', 'answeringStart', { type: 'layerLive', layerId: 'L-PAN2' }), mk('s3', 'Notes', 'hostNotes', { type: 'layerLive', layerId: 'L-NOTE' })]);
+  assert.equal((await api('POST', '/api/simulate/doneReading')).status, 400, 'needs a live question first');
+  await api('POST', '/api/simulate/end');
+  mimoEvents.length = 0;
+  const sim1 = await api('POST', '/api/simulate/questionLive');
+  assert.equal(sim1.json.simulating, true);
+  assert.equal(sim1.json.current.values.name, 'Kari Nordmann');
+  await waitFor(() => ev('live', 'L-LT') >= 0 && ev('update', 'L-LT', 'Kari Nordmann') >= 0, 'simulated question on air');
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'REAL', n: 'Real Person', q: 'Real', v: 1 });
+  await sleep(300);
+  assert.equal((await api('GET', '/api/status')).json.current.values.name, 'Kari Nordmann', 'Mukana ignored while simulating');
+  await api('POST', '/api/simulate/handRaised');
+  await api('POST', '/api/simulate/aboveLine');
+  await api('POST', '/api/simulate/answeringStart');
+  await waitFor(() => ev('live', 'L-PAN2') >= 0, 'answering cue');
+  await api('POST', '/api/simulate/hostNotes');
+  await waitFor(() => ev('live', 'L-NOTE') >= 0, 'host notes cue');
+  const simLog = (await api('GET', '/api/status')).json.log.map((l) => l.msg).join('\n');
+  assert.match(simLog, /simulated\): Panelist raises hand/);
+  assert.match(simLog, /simulated\): Panelist moved above the line/);
+  const back = await api('POST', '/api/simulate/end');
+  assert.equal(back.json.simulating, false);
+  assert.equal(back.json.current.values.name, 'Real Person', 'back to Mukana');
+  sse('qs_liveQ/ohtest', 'put', '/', null);
+  await sleep(300);
+  await cueCfg([]);
+
+  // ---------- panelists, run by cues ----------
+  const SLOT = (x) => `tvIn_VideoSource${x}Image`;
+  const PANEL_CUES = [
+    mk('p1', 'Panelist layout', 'answeringChange', { type: 'panelistLayout' }, { continue: 'auto-follow' }),
+    mk('p2', 'Panelist name', { type: 'none' }, { type: 'panelistLowerThird' }, { preWait: 0.3 }),
+    mk('p3', 'Panelists done', 'answeringEnd', { type: 'layerOff', layerIds: ['L-LT3'] }, { cancels: ['p1', 'p2'] }),
+    mk('pr', 'Reader into B', { type: 'go' }, { type: 'roleToSlot', role: 'reader', layerId: 'L-2UP', slot: 'B' }),
+    mk('ps', 'QR into C', { type: 'go' }, { type: 'sourceToSlot', sourceId: 'S-QR', layerId: 'L-3UP', slot: 'C' }),
+    mk('pp', 'Panel', { type: 'go' }, { type: 'panelLayout' }),
+  ];
+  const slotSet = (layer, slot, src) => mimoEvents.findIndex((e) => e.type === 'update' && e.id === layer && e.key === SLOT(slot) && e.value === src);
+  await api('POST', '/api/config', {
+    layerControl: { enabled: true, cues: PANEL_CUES },
+    panelists: {
+      cast: [
+        { uid: 'u1', name: 'Ola', sourceId: 'S-OLA', ltVariantId: 'V-OLA' },
+        { uid: 'u2', name: 'Per', sourceId: 'S-PER', ltVariantId: 'V-PER' },
+        { uid: 'u3', name: 'Anne', sourceId: 'S-ANNE', ltVariantId: 'V-ANNE' },
+        { uid: 'h1', name: 'Host', role: 'host', sourceId: 'S-HOST', ltVariantId: 'V-OLA' },
+        { uid: 'r1', name: 'Reader', role: 'reader', sourceId: 'S-READ', ltVariantId: 'V-OLA' },
+      ],
+      layouts: [
+        { count: 1, setId: 'SET-2UP', layerId: 'L-2UP', slots: ['B'] },
+        { count: 2, setId: 'SET-3UP', layerId: 'L-3UP', slots: ['B', 'C'] },
+      ],
+      ltLayerId: 'L-LT3',
+      ltMode: 'variant',
+      ltDelaySec: 0.3,
+      ltOffAfterSec: 0,
+    },
+  });
+  const vars = await api('GET', '/api/mimolive/variants?layer=L-LT3');
+  assert.deepEqual(vars.json.map((v) => v.id), ['V-OLA', 'V-PER', 'V-ANNE']);
+  sse('panel_onlinelist/ohtest', 'put', '/', { u1: { displayName: 'Ola' }, u2: { displayName: 'Per' } });
+  await waitFor(async () => (await api('GET', '/api/status')).json.online.length === 2, 'online list in status');
+  // pre-flight roster: captured from hands while the question is on deck, kept after it is answered
+  sse('comments_host_output/ohtest', 'put', '/PF', { comment: '***Pre-flight checklist item: Panelists, please raise your hands*', orderID: 9 });
+  sse('panel_hands/ohtest', 'put', '/PF', { array: [{ uid: 'u1', name: 'Ola', st: 'q' }, { uid: 'u3', name: 'Anne', st: 'q' }] });
+  await waitFor(async () => (await api('GET', '/api/status')).json.roster.length === 2, 'roster captured');
+  sse('comments_host_output/ohtest', 'put', '/PF', null);
+  sse('comments_answered/ohtest', 'put', '/PF', { comment: '***Pre-flight checklist item: Panelists, please raise your hands*' });
+  sse('panel_hands/ohtest', 'put', '/PF', null); // Mukana drops the hands when answered
+  await sleep(200);
+  assert.deepEqual((await api('GET', '/api/status')).json.roster.map((p) => p.name), ['Ola', 'Anne'], 'roster kept after answered');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'config.json'), 'utf8')).panelists.roster.people.length, 2, 'roster saved');
+  sse('panel_hands/ohtest', 'put', '/PF', { u2: true }); // other hands format, late joiner
+  await waitFor(async () => (await api('GET', '/api/status')).json.roster.length === 3, 'roster merges late joiners');
+  assert.equal((await api('POST', '/api/panelists/roster/clear')).json.roster.length, 0);
+  sse('panel_hands/ohtest', 'put', '/PF', null);
+  // late arrivals: add everyone with a hand on the live question
+  assert.equal((await api('POST', '/api/panelists/roster/from-question')).status, 400, 'no live question');
+  sse('panel_hands/ohtest', 'put', '/Q7', { array: [{ uid: 'u5', name: 'Kari Sen', st: 'q', loc: 'Alta' }, { uid: 'u1', name: 'Ola', st: 'a' }] });
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q7', n: 'X', q: 'Late', v: 1 });
+  await waitFor(async () => (await api('GET', '/api/status')).json.current.key === 'Q7', 'Q7 live');
+  const fromQ = await api('POST', '/api/panelists/roster/from-question');
+  assert.deepEqual(fromQ.json.people.map((p) => p.name), ['Kari Sen', 'Ola']);
+  assert.equal(fromQ.json.added.length, 2);
+  assert.equal(fromQ.json.people[0].loc, 'Alta', 'location comes along');
+  assert.equal((await api('POST', '/api/panelists/roster/from-question')).json.added.length, 0, 'no duplicates');
+  assert.deepEqual((await api('GET', '/api/status')).json.roster.map((p) => p.uid), ['u5', 'u1']);
+  sse('qs_liveQ/ohtest', 'put', '/', null);
+  await api('POST', '/api/panelists/roster/clear');
+  const hands = (...p) => sse('panel_hands/ohtest', 'put', '/', { Q6: { array: p.map(([uid, st]) => ({ uid, st, name: uid })) } });
+  hands(['u1', 'q']);
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q6', n: 'Sol', q: 'Sjette', v: 1 });
+  await sleep(200);
+
+  // the "Add panelist cues" button builds a working list from the Panelists settings
+  {
+    await cueCfg([]);
+    const built = await api('POST', '/api/cues/add-panelist-cues');
+    const list = built.json.layerControl.cues;
+    const by = (n) => list.find((c) => c.name === n);
+    assert.ok(['Reader into B', 'Question overlay off', 'Answering · with host', 'Panelist name', 'Panelists done', 'Shot: with host'].every((n) => by(n)), list.map((c) => c.name).join());
+    assert.deepEqual([by('Answering · with host').action, by('Answering · with host').continue], [{ type: 'panelistLayout', shot: 'host' }, 'auto-continue']);
+    // timeline: name at the delay (Off after = 0 here, so no "name off" cue)
+    assert.equal(by('Panelist name').preWait, 0.3);
+    assert.ok(!by('Panelist name off'));
+    assert.equal(by('Panelists done').cancels.length, 2);
+    await cueCfg(PANEL_CUES); // back to the explicit list for the checks below
+  }
+
+  // the host answering alone: nothing (the host never counts)
+  mimoEvents.length = 0;
+  hands(['h1', 'a']);
+  await sleep(500);
+  assert.ok(!mimoEvents.some((e) => ['recall', 'vlive', 'live'].includes(e.type) || e.key?.startsWith('tvIn_')), 'host ignored');
+
+  // one panelist: source into B, then the layout, then (cue 2 pre-wait) the lower third
+  mimoEvents.length = 0;
+  hands(['h1', 'a'], ['u1', 'a']);
+  await waitFor(() => ev('vlive', 'V-OLA') >= 0, 'Ola lower third');
+  assert.ok(slotSet('L-2UP', 'B', 'S-OLA') >= 0 && slotSet('L-2UP', 'B', 'S-OLA') < ev('recall', 'SET-2UP'), 'source before layout');
+  assert.ok(evAt('vlive', 'V-OLA').t - evAt('recall', 'SET-2UP').t >= 250, 'lower third after the pre-wait');
+  const ps = (await api('GET', '/api/status')).json.panelists;
+  assert.deepEqual(ps.placed.map((x) => [x.uid, x.slot]), [['u1', 'B']], 'host not placed');
+  assert.equal(ps.lowerThird.name, 'u1');
+
+  // switch to another single panelist: lower third out first, B cuts, new lower third; layout stays
+  mimoEvents.length = 0;
+  hands(['u1', 'c'], ['u2', 'a']);
+  await waitFor(() => ev('vlive', 'V-PER') >= 0, 'Per lower third');
+  assert.ok(ev('off', 'L-LT3') >= 0 && evAt('isOff', 'L-LT3').t <= mimoEvents[slotSet('L-2UP', 'B', 'S-PER')].t, 'lower third out before the source changes');
+  assert.equal(ev('recall', 'SET-2UP'), -1, 'layout not recalled again');
+
+  // a second panelist joins: bigger layout, both slots, no lower third with several
+  mimoEvents.length = 0;
+  hands(['u1', 'c'], ['u2', 'a'], ['u3', 'a']);
+  await waitFor(() => ev('recall', 'SET-3UP') >= 0, '3 UP');
+  assert.ok(slotSet('L-3UP', 'B', 'S-PER') >= 0 && slotSet('L-3UP', 'C', 'S-ANNE') >= 0 && slotSet('L-3UP', 'C', 'S-ANNE') < ev('recall', 'SET-3UP'));
+  assert.ok(ev('off', 'L-LT3') >= 0, 'lower third off with several');
+  await sleep(500);
+  assert.ok(!mimoEvents.some((e) => e.type === 'vlive'), 'no lower third with several');
+
+  // the first one leaves: the other shifts up into B, smaller layout, no new lower third
+  mimoEvents.length = 0;
+  hands(['u1', 'c'], ['u2', 'c'], ['u3', 'a']);
+  await waitFor(() => ev('recall', 'SET-2UP') >= 0, 'back to 2 UP');
+  assert.ok(slotSet('L-2UP', 'B', 'S-ANNE') >= 0 && slotSet('L-2UP', 'B', 'S-ANNE') < ev('recall', 'SET-2UP'));
+  await sleep(500);
+  assert.ok(!mimoEvents.some((e) => e.type === 'vlive'), 'no lower third after shrinking');
+
+  // nobody answering: the layout stays, "Panelists done" takes the lower third off
+  mimoEvents.length = 0;
+  hands(['u3', 'c']);
+  await waitFor(() => ev('off', 'L-LT3') >= 0, 'done cue');
+  await sleep(300);
+  assert.ok(!mimoEvents.some((e) => e.type === 'recall' || e.key?.startsWith('tvIn_')), 'layout stays when everyone is done');
+  assert.deepEqual((await api('GET', '/api/status')).json.panelists.placed, []);
+
+  // the reader answering counts as a panelist
+  mimoEvents.length = 0;
+  hands(['r1', 'a']);
+  await waitFor(() => slotSet('L-2UP', 'B', 'S-READ') >= 0 && ev('recall', 'SET-2UP') >= 0 && ev('vlive', 'V-OLA') >= 0, 'reader as panelist');
+  hands(['r1', 'c']);
+  await sleep(400);
+
+  // Role into slot and Source into slot
+  mimoEvents.length = 0;
+  await api('POST', '/api/cues/pr/go');
+  await api('POST', '/api/cues/ps/go');
+  await waitFor(() => slotSet('L-2UP', 'B', 'S-READ') >= 0 && slotSet('L-3UP', 'C', 'S-QR') >= 0, 'role and source into slot');
+
+  // Panel layout: everyone approved above the line, host excluded, done ones not, in queue order
+  mimoEvents.length = 0;
+  hands(['h1', 'q'], ['u1', 'q'], ['u9', 'c'], ['u2', 'q']);
+  await sleep(200);
+  await api('POST', '/api/cues/pp/go');
+  await waitFor(() => ev('recall', 'SET-3UP') >= 0, 'panel layout');
+  assert.ok(slotSet('L-3UP', 'B', 'S-OLA') >= 0 && slotSet('L-3UP', 'C', 'S-PER') >= 0 && slotSet('L-3UP', 'C', 'S-PER') < ev('recall', 'SET-3UP'), 'panel in queue order, sources first');
+  assert.ok(!mimoEvents.some((e) => e.value === 'S-HOST'), 'host not in the panel');
+  const pan = (await api('GET', '/api/status')).json.panelists;
+  assert.equal(pan.mode, 'panel');
+  assert.deepEqual(pan.panel.map((x) => x.uid), ['u1', 'u2']);
+  // the host clicks Per: the answering layout takes over, with his lower third (new shot, though 2 → 1)
+  mimoEvents.length = 0;
+  hands(['h1', 'q'], ['u1', 'q'], ['u2', 'a']);
+  await waitFor(() => ev('vlive', 'V-PER') >= 0, 'answering after the panel');
+  assert.ok(slotSet('L-2UP', 'B', 'S-PER') >= 0 && ev('recall', 'SET-2UP') >= 0);
+  assert.equal((await api('GET', '/api/status')).json.panelists.mode, 'answering');
+  hands(['u2', 'c']);
+  await sleep(400);
+
+  // ---- shots: with host → (timeline) name → answering only → name off; Change shot; Companion
+  {
+    const cfgNow = (await api('GET', '/api/config')).json.panelists;
+    await api('POST', '/api/config', {
+      panelists: {
+        layouts: [
+          ...cfgNow.layouts,
+          { count: 1, shot: 'solo', setId: 'SET-FULL', layerId: 'L-FULL', slots: ['A'] },
+          { count: 0, shot: 'hostOnly', setId: 'SET-HOST', layerId: '', slots: [] },
+        ],
+      },
+    });
+    await cueCfg([
+      mk('a1', 'Answering · with host', 'answeringChange', { type: 'panelistLayout', shot: 'host' }, { continue: 'auto-continue' }),
+      mk('a2', 'Panelist name', { type: 'none' }, { type: 'panelistLowerThird' }, { preWait: 0.2, continue: 'auto-continue' }),
+      mk('a3', 'Go single', { type: 'none' }, { type: 'changeShot', shot: 'solo' }, { preWait: 0.6, continue: 'auto-continue' }),
+      mk('a4', 'Name off', { type: 'none' }, { type: 'layerOff', layerIds: ['L-LT3'] }, { preWait: 1.2 }),
+      mk('a5', 'Done', 'answeringEnd', { type: 'layerOff', layerIds: ['L-LT3'] }, { cancels: ['a1', 'a2', 'a3', 'a4'] }),
+      mk('b1', 'Shot: with host', { type: 'go' }, { type: 'changeShot', shot: 'host' }),
+      mk('b2', 'Shot: host only', { type: 'go' }, { type: 'changeShot', shot: 'hostOnly' }),
+      mk('b3', 'Follow current', { type: 'go' }, { type: 'panelistLayout', shot: 'current' }),
+    ]);
+    mimoEvents.length = 0;
+    hands(['u1', 'a']);
+    await waitFor(() => ev('recall', 'SET-FULL') >= 0, 'goes single');
+    const t0 = evAt('recall', 'SET-2UP').t;
+    assert.ok(slotSet('L-2UP', 'B', 'S-OLA') >= 0, 'with host first');
+    assert.ok(evAt('vlive', 'V-OLA').t - t0 >= 150 && evAt('vlive', 'V-OLA').t - t0 < 550, 'name at ~0.2 s');
+    assert.ok(evAt('recall', 'SET-FULL').t - t0 >= 550 && evAt('recall', 'SET-FULL').t - t0 < 1100, 'single at ~0.6 s (timeline, not 0.2 + 0.6)');
+    assert.ok(slotSet('L-FULL', 'A', 'S-OLA') >= 0 && slotSet('L-FULL', 'A', 'S-OLA') < ev('recall', 'SET-FULL'), 'answering only: source into A first');
+    assert.equal(ev('off', 'L-LT3'), -1, 'lower third stays on through the shot change');
+    await waitFor(() => ev('off', 'L-LT3') >= 0, 'name off at ~1.2 s');
+    assert.equal((await api('GET', '/api/cues')).json.shot, 'solo');
+    // host only (Stream Deck), then "current shot" comes back to answering only
+    mimoEvents.length = 0;
+    await api('POST', '/api/cues/b2/go');
+    await waitFor(() => ev('recall', 'SET-HOST') >= 0, 'host only');
+    const st1 = (await api('GET', '/api/cues')).json;
+    assert.equal(st1.shot, 'hostOnly');
+    assert.equal(st1.answerShot, 'solo', 'host only is momentary');
+    await api('POST', '/api/cues/b3/go');
+    await waitFor(() => ev('recall', 'SET-FULL') >= 0, 'current shot = answering only again');
+    // Companion: shot endpoint
+    mimoEvents.length = 0;
+    const comp = await api('POST', '/api/shot/host');
+    assert.equal(comp.json.shot, 'host');
+    assert.ok(slotSet('L-2UP', 'B', 'S-OLA') >= 0 && ev('recall', 'SET-2UP') >= 0, 'Companion: with host');
+    assert.equal((await api('POST', '/api/shot/sideways')).status, 404);
+    // the next panelist restarts the timeline: with host again, then single
+    mimoEvents.length = 0;
+    hands(['u1', 'c'], ['u2', 'a']);
+    await waitFor(() => ev('recall', 'SET-FULL') >= 0, 'next panelist: timeline again');
+    assert.ok(slotSet('L-2UP', 'B', 'S-PER') >= 0 && slotSet('L-2UP', 'B', 'S-PER') < ev('recall', 'SET-FULL'), 'with host before single');
+    assert.ok(ev('vlive', 'V-PER') >= 0);
+    hands(['u2', 'c']);
+    await sleep(400);
+    await api('POST', '/api/config', { panelists: { layouts: cfgNow.layouts } });
+    await cueCfg(PANEL_CUES);
+  }
+
+  // a question going live with a panelist already answering fires no answering events
+  mimoEvents.length = 0;
+  sse('panel_hands/ohtest', 'put', '/Q8', { array: [{ uid: 'u1', st: 'a', name: 'u1' }] });
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q8', n: 'Zara', q: 'Åttende', v: 1 });
+  await sleep(600);
+  assert.ok(!mimoEvents.some((e) => ['recall', 'vlive'].includes(e.type)), 'nothing from panelist cues when a question starts');
+  // ...but when they are made answering again, the layout and lower third come
+  sse('panel_hands/ohtest', 'put', '/Q8', { array: [{ uid: 'u1', st: 'c', name: 'u1' }] });
+  await sleep(300);
+  mimoEvents.length = 0;
+  sse('panel_hands/ohtest', 'put', '/Q8', { array: [{ uid: 'u1', st: 'a', name: 'u1' }] });
+  await waitFor(() => ev('vlive', 'V-OLA') >= 0, 'lower third when activated while live');
+  sse('panel_hands/ohtest', 'put', '/Q8', null);
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q6', n: 'Sol', q: 'Sjette', v: 1 });
+  await sleep(400);
+
+  // text mode: name and title are written into the lower third (while it is off), then it goes live
+  await api('POST', '/api/config', {
+    panelists: {
+      ltMode: 'text',
+      cast: [
+        { uid: 'u1', name: 'Ola', screenName: 'Ola Nordmann', title: 'Daglig leder, NODA', sourceId: 'S-OLA' },
+        { uid: 'u2', name: 'Per', sourceId: 'S-PER' },
+      ],
+    },
+  });
+  mimoEvents.length = 0;
+  hands(['u1', 'a']);
+  await waitFor(() => ev('live', 'L-LT3') >= 0, 'text lower third live');
+  const ltName = mimoEvents.findIndex((e) => e.id === 'L-LT3' && e.key === 'tvGroup_Content__Title' && e.value === 'Ola Nordmann');
+  const ltTitle = mimoEvents.findIndex((e) => e.id === 'L-LT3' && e.key === 'tvGroup_Content__Subtitle' && e.value === 'Daglig leder, NODA');
+  assert.ok(ltName >= 0 && ltTitle >= 0 && ltTitle < ev('live', 'L-LT3'), 'name and title before live');
+  assert.ok(!mimoEvents.some((e) => e.type === 'vlive'), 'no variant in text mode');
+  mimoEvents.length = 0;
+  hands(['u1', 'c'], ['u2', 'a']);
+  await waitFor(() => ev('live', 'L-LT3') >= 0, 'second text lower third');
+  assert.ok(mimoEvents.some((e) => e.key === 'tvGroup_Content__Title' && e.value === 'u2'), 'Mukana name (here: u2) when no name on screen');
+  assert.ok(mimoEvents.some((e) => e.key === 'tvGroup_Content__Subtitle' && e.value === ''), 'empty title is cleared');
+  assert.ok(evAt('isOff', 'L-LT3').t <= mimoEvents.find((e) => e.key === 'tvGroup_Content__Title' && e.value === 'u2').t, 'text changes only after the old lower third is off');
+  hands(['u2', 'c']);
+  await sleep(300);
+
+  // Auto layers off: no live/off at all
+  await api('POST', '/api/config', { layerControl: { enabled: false } });
+  mimoEvents.length = 0;
+  sse('qs_liveQ/ohtest', 'put', '/', { key: 'Q5', n: 'Una', q: 'Femte', v: 1 });
+  hands(['u1', 'a']);
+  await waitFor(() => ev('update', 'L-LT', 'Una') >= 0, 'text without layer control');
+  await sleep(500);
+  assert.ok(!mimoEvents.some((e) => ['live', 'off', 'recall', 'vlive'].includes(e.type)), 'no layer actions when off');
 
   // change listen port at runtime
   const srv = await api('GET', '/api/server');

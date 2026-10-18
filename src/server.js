@@ -12,11 +12,19 @@ import { loadConfig, saveConfig, updateConfig, publicConfig, FIELDS } from './co
 import { SyncEngine } from './sync.js';
 import { MimoLive, discover } from './mimolive.js';
 import * as autostart from './autostart.js';
+import { migrateRules, addPanelistCues, overlayLayersFrom, EVENTS, ACTIONS, SHOTS } from './cues.js';
 
 const PUBLIC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const UI_PASSWORD = process.env.UI_PASSWORD || '';
 
 let config = loadConfig();
+// Layer control rules from before the cue list become cues.
+if (config.layerControl.rules?.length && !config.layerControl.cues?.length) {
+  config.layerControl.cues = migrateRules(config.layerControl.rules);
+  delete config.layerControl.rules;
+  saveConfig(config);
+  console.log(`Layer control: converted the old rules to ${config.layerControl.cues.length} cues`);
+}
 // Listen address: env vars win (and lock the setting), otherwise the saved config.
 const ENV_LOCK = { host: !!process.env.HOST, port: !!process.env.PORT };
 let listenAddr = {
@@ -50,6 +58,24 @@ const engine = new SyncEngine(
     saveConfig(config);
   }
 );
+engine.on('configChanged', () => saveConfig(config)); // e.g. the captured pre-flight list
+
+/** Add the panelist cues to the cue list (the question overlay is worked out from the layer sets). */
+async function addPanelistCuesNow() {
+  const sets = await new MimoLive(config.mimolive).layerSets(config.mimolive.documentId);
+  const cues = config.layerControl.cues || [];
+  const overlayLayers = overlayLayersFrom({ cues, panelists: config.panelists, targets: config.targets, sets });
+  config.layerControl.cues = addPanelistCues(cues, { panelists: config.panelists, overlayLayers });
+  config.layerControl.panelistCuesAdded = true;
+  saveConfig(config);
+  engine.cues.configure();
+  engine.addLog('info', `Cue list: added the panelist cues (${config.layerControl.cues.length - cues.length} new)`);
+  return publicConfig(config);
+}
+// Panelists used to run by themselves; now the cue list runs them. Convert once.
+if (config.panelists?.layouts?.length && !config.layerControl.panelistCuesAdded) {
+  addPanelistCuesNow().catch((e) => console.error('Adding panelist cues failed:', e.message));
+}
 
 function send(res, code, body, type = 'application/json; charset=utf-8') {
   res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' });
@@ -122,6 +148,8 @@ const routes = {
     config = updateConfig(config, patch);
     if (Array.isArray(patch.targets)) config.targets = patch.targets;
     saveConfig(config);
+    for (const c of config.layerControl.cues || []) c.id ||= crypto.randomUUID();
+    engine.cues.configure();
     if (engine.running && JSON.stringify(config.mukana) !== before) {
       engine.stop();
       await engine.start();
@@ -134,6 +162,33 @@ const routes = {
   'POST /api/start': async () => {
     await engine.start();
     config.autoStart = true;
+    saveConfig(config);
+    return engine.status();
+  },
+  // ---- cue list, Companion and simulation
+  'GET /api/cues/meta': () => ({ events: EVENTS, actions: ACTIONS, shots: SHOTS }),
+  'GET /api/cues': () => {
+    const s = engine.status();
+    return { autoLayers: s.autoLayers, simulating: s.simulating, questionLive: s.current.active, question: s.current.values.name, answering: s.current.answering.map((p) => p.name), shot: s.panelists.shot, answerShot: s.panelists.answerShot, cues: s.cues };
+  },
+  'POST /api/cues/add-panelist-cues': async () => addPanelistCuesNow(),
+  'POST /api/cues/stop-all': async () => {
+    engine.cues.stopAll();
+    engine.addLog('info', 'Cue · all stopped');
+    return engine.cues.status();
+  },
+  'POST /api/auto-layers': async (req) => {
+    const body = await readBody(req);
+    config.layerControl.enabled = typeof body.enabled === 'boolean' ? body.enabled : !config.layerControl.enabled;
+    saveConfig(config);
+    engine.cues.configure();
+    engine.addLog('info', `Auto layers ${config.layerControl.enabled ? 'on' : 'off'}`);
+    return { autoLayers: config.layerControl.enabled };
+  },
+  'POST /api/simulate/end': async () => engine.endSim(),
+  'POST /api/panelists/roster/from-question': async () => engine.panelists.addFromCurrentQuestion(engine.trees),
+  'POST /api/panelists/roster/clear': async () => {
+    config.panelists.roster = { eventId: config.mukana.eventId, people: [] };
     saveConfig(config);
     return engine.status();
   },
@@ -201,10 +256,9 @@ const routes = {
   // Read back every mapped target from mimoLive and compare with what the engine expects.
   'GET /api/mimolive/verify': async () => {
     const ml = new MimoLive(config.mimolive);
-    const expected = engine.current.values;
     return Promise.all(
       config.targets.map(async (t) => {
-        const want = expected[t.field] ?? '';
+        const want = engine.valueFor(t);
         try {
           const { name, values } = await ml.getInputs({ documentId: config.mimolive.documentId, kind: t.kind, id: t.id });
           const actual = values[t.key];
@@ -215,16 +269,31 @@ const routes = {
       })
     );
   },
+  'GET /api/mimolive/variants': async (req, url) =>
+    new MimoLive({ ...config.mimolive, password: mlPassword(req) }).variants(config.mimolive.documentId, url.searchParams.get('layer')),
   'GET /api/mimolive/discover': async (req, url) => discover(Number(url.searchParams.get('port') || 8989), { password: mlPassword(req) }),
   'GET /api/mimolive/documents': async (req, url) =>
     new MimoLive({ host: url.searchParams.get('host'), port: url.searchParams.get('port') || 8989, password: mlPassword(req) }).documents(),
   'GET /api/mimolive/elements': async (req, url) => {
     const ml = new MimoLive({ host: url.searchParams.get('host'), port: url.searchParams.get('port') || 8989, password: mlPassword(req) });
     const doc = url.searchParams.get('doc');
-    const [layers, sources] = await Promise.all([ml.layers(doc), ml.sources(doc).catch(() => [])]);
-    return { layers, sources };
+    const [layers, sources, layerSets] = await Promise.all([ml.layers(doc), ml.sources(doc).catch(() => []), ml.layerSets(doc)]);
+    return { layers, sources, layerSets };
   },
 };
+
+// Routes with a parameter: cue number or id, simulated event name.
+const PARAM_ROUTES = [
+  [/^POST \/api\/cues\/([^/]+)\/go$/, (req, url, ref) => engine.cues.go(ref)],
+  [/^POST \/api\/cues\/([^/]+)\/stop$/, (req, url, ref) => engine.cues.stopCue(ref)],
+  [/^POST \/api\/cues\/([^/]+)\/continue$/, (req, url, ref) => engine.cues.continueCue(ref, 'Companion')],
+  [/^POST \/api\/shot\/(host|solo|hostOnly)$/, async (req, url, shot) => {
+    const msg = await engine.panelists.changeShot(new MimoLive(config.mimolive), config.mimolive.documentId, shot);
+    engine.addLog('info', `Shot ${SHOTS[shot]} (Companion): ${msg}`);
+    return { shot: engine.panelists.shot, answerShot: engine.panelists.answerShot, message: msg };
+  }],
+  [/^POST \/api\/simulate\/([^/]+)$/, async (req, url, event) => engine.simulate(event, await readBody(req).catch(() => ({})))],
+];
 
 async function handleRequest(req, res) {
   const url = new URL(req.url, 'http://x');
@@ -243,7 +312,12 @@ async function handleRequest(req, res) {
     if (req.method === 'GET' && !url.pathname.startsWith('/api/')) return send(res, 401, LOGIN_HTML, 'text/html; charset=utf-8');
     return send(res, 401, { error: 'Auth required' });
   }
-  const handler = routes[`${req.method} ${url.pathname}`];
+  let handler = routes[`${req.method} ${url.pathname}`];
+  for (const [re, fn] of PARAM_ROUTES) {
+    if (handler) break;
+    const m = `${req.method} ${url.pathname}`.match(re);
+    if (m) handler = (rq, u) => fn(rq, u, ...m.slice(1).map(decodeURIComponent));
+  }
   if (handler) {
     try {
       return send(res, 200, await handler(req, url));

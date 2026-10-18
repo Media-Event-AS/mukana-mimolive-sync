@@ -1,7 +1,7 @@
 {
   "name": "mukana-mimolive-sync",
-  "version": "3.0.2",
-  "description": "Headless sync from Mukana (Firebase RTDB) to mimoLive layers. No browser or extension required.",
+  "version": "3.1.0",
+  "description": "Headless sync from Mukana (Firebase RTDB) to mimoLive layers, with advanced automation: cue list, panelist layouts and lower thirds. No browser or extension required.",
   "author": {
     "name": "Ronny Hofsøy",
     "email": "ronny@mediaevent.no",
@@ -19,6 +19,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
     "test": "node test/e2e.test.js && node test/auth.test.js"
   },
   "engines": {

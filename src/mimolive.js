@@ -49,6 +49,7 @@ export class MimoLive {
     return (j.data || []).map((s) => ({
       id: s.id,
       name: s.attributes?.name || s.id,
+      type: s.attributes?.['source-type'] || '',
       kind: 'source',
       inputKeys: Object.keys(s.attributes?.['input-values'] || {}),
     }));
@@ -66,6 +67,53 @@ export class MimoLive {
     const coll = kind === 'source' ? 'sources' : 'layers';
     const update = encodeURIComponent(JSON.stringify({ 'input-values': { [key]: value ?? '' } }));
     await request(`${this.base}/documents/${documentId}/${coll}/${id}?update=${update}`, { headers: this.headers });
+  }
+
+  /** Take a layer live with its selected variant. Safe to call on a live layer. */
+  async setLive(documentId, layerId) {
+    await request(`${this.base}/documents/${documentId}/layers/${layerId}/setLive`, { headers: this.headers });
+  }
+
+  /** Switch a layer off. It may stay in "shutdown" while its out-transition plays. */
+  async setOff(documentId, layerId) {
+    await request(`${this.base}/documents/${documentId}/layers/${layerId}/setOff`, { headers: this.headers });
+  }
+
+  /** Variants of a layer, e.g. one per person in a Lower Third layer. */
+  async variants(docId, layerId) {
+    const j = await this.getJson(`/documents/${docId}/layers/${layerId}/variants`);
+    return (j.data || []).map((v) => ({ id: v.id, name: v.attributes?.name || v.id }));
+  }
+
+  /** Take one variant live; mimoLive takes its layer live too. */
+  async setVariantLive(documentId, layerId, variantId) {
+    await request(`${this.base}/documents/${documentId}/layers/${layerId}/variants/${variantId}/setLive`, { headers: this.headers });
+  }
+
+  /** "off" | "live" | "preview" | "shutdown" */
+  async layerState(documentId, layerId) {
+    const j = await this.getJson(`/documents/${documentId}/layers/${layerId}`);
+    return j.data?.attributes?.['live-state'] || 'off';
+  }
+
+  /** Layer sets (mimoLive 5.0+). Older versions answer 404, which is returned as an empty list. */
+  async layerSets(docId) {
+    const j = await this.getJson(`/documents/${docId}/layer-sets`).catch(() => ({ data: [] }));
+    return (j.data || []).map((s) => ({
+      id: s.id,
+      name: s.attributes?.name || s.id,
+      // Older mimoLive versions do not list the layer actions.
+      layers: (s.attributes?.layers || []).map((l) => ({ id: l['layer-id'], action: l.action })),
+    }));
+  }
+
+  /** Trigger a signal input (key ending in _TypeSignal) of a layer. */
+  async signal(documentId, layerId, signalId) {
+    await request(`${this.base}/documents/${documentId}/layers/${layerId}/signals/${signalId}`, { headers: this.headers });
+  }
+
+  async recallLayerSet(documentId, setId) {
+    await request(`${this.base}/documents/${documentId}/layer-sets/${setId}/recall`, { headers: this.headers });
   }
 }
 

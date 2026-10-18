@@ -60,6 +60,28 @@
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); padding: 10px 16px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   .toast.show { opacity: 1; }
   .toast.err { border-color: var(--err); color: var(--err); }
+  button.armed { background: var(--err); color: #fff; }
+  button.on { background: rgba(46,204,113,.18); color: var(--ok); }
+  .onair { color: var(--ok); font-weight: 600; }
+  #castTable[data-mode="text"] .lt-var, #castTable[data-mode="variant"] .lt-text { display: none; }
+  .cue-wrap { overflow-x: auto; }
+  .cue-table { min-width: 1180px; }
+  .cue-table td { white-space: nowrap; }
+  .cue-table .c-name { min-width: 75px; width: 75px; } .cue-table .c-trig { min-width: 190px; } .cue-table .c-pre { min-width: 64px; }
+  .cue-table .c-act { min-width: 150px; } .cue-table .c-cont { min-width: 120px; } .cue-table .c-cancels { min-width: 64px; }
+  .cue-table td.c-target select { width: auto; min-width: 0; max-width: 170px; flex: 0 1 auto; }
+  .cue-table td.c-target .a-layers { width: 210px; max-width: 210px; }
+  .cue-table td.c-target .a-sum { max-width: 210px; }
+  .cue-table td.c-target .a-slot { width: 56px; flex: 0 0 auto; }
+  .cue-table td.c-target .a-role { width: 96px; flex: 0 0 auto; }
+  .cue-table td.c-target .a-until { max-width: 220px; }
+  tr.dup td { background: rgba(241,196,15,.08); } .cue-table td.now { min-width: 120px; }
+  .cue-table td.c-target { display: flex; gap: 4px; }
+  .cue-table td.c-target > * { min-width: 0; }
+  .cue-table td.num { color: var(--muted); font-weight: 600; }
+  .cue-btns button { padding: 6px 8px; }
+  tr.running td.num { color: var(--ok); }
+  .sub { font-size: 12px; color: var(--muted); margin: 18px 0 4px; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -128,7 +150,61 @@
   </section>
 
   <section class="wide">
-    <h2>4 · Live</h2>
+    <h2>4 · Layer control · cue list</h2>
+    <div class="hint" style="margin-top:0">Cues run like in QLab. A <b>trigger</b> fires a cue: a Mukana event (while <b>Auto layers</b> is on), or <b>GO</b> here or from Companion. After its <b>pre-wait</b> the cue does its action. <b>Auto-continue</b> starts the next cue at the same moment as this one, so the pre-waits of a run of auto-continued cues read like a timeline (0 s, 3 s, 6 s…); <b>auto-follow</b> starts the next cue when this one is done. A cue fired again restarts and stops what it started; <b>Cancels</b> stops other cues (numbers, e.g. <code>2, 3</code>). Question text is written before a layer goes live and cleared only after it has gone off.</div>
+    <div class="cue-wrap"><table class="map-table cue-table">
+      <thead><tr><th>#</th><th>Name</th><th>Trigger</th><th>Pre-wait (s)</th><th>Action</th><th>Target</th><th>Continue</th><th>Cancels</th><th>Now</th><th></th></tr></thead>
+      <tbody id="cueBody"></tbody>
+    </table></div>
+    <div class="btns">
+      <button id="btnAddCue">+ Add cue</button>
+      <button id="btnStopAll" class="danger" title="Stop every running cue (no confirm: panic button)">Stop all cues</button>
+      <span class="spacer"></span>
+      <button class="primary" id="btnSaveCues">Save cues</button>
+    </div>
+    <div class="sub">Simulate Mukana · drives mimoLive for real</div>
+    <div class="row" style="max-width:420px"><div><label for="simWho" style="margin-top:0">Panelist for hand events</label><select id="simWho"></select></div></div>
+    <div class="btns" id="simBtns"></div>
+    <div class="hint" id="simHint"></div>
+  </section>
+
+  <section class="wide">
+    <h2>5 · Panelists</h2>
+    <div class="hint" style="margin-top:0">Who is who, their video sources and lower thirds, and which layout to use for how many are answering. Nothing here runs by itself: the cue list does it with the actions <b>Panelist layout</b> (sources into the slots, host stays in A, layout for that many; when one leaves, the others shift up), <b>Panelist lower third</b> (only for one panelist who just started) and <b>Role into slot</b>. <button id="btnAddPanCues" style="margin-left:6px">Add panelist cues to the cue list</button></div>
+    <div id="panStatus" class="stats" style="margin:10px 0 0"></div>
+    <div class="sub">Lower third</div>
+    <div class="row" style="max-width:900px">
+      <div><label for="ltLayer" style="margin-top:0">Lower third layer</label><select id="ltLayer"></select></div>
+      <div><label for="ltMode" style="margin-top:0">How</label><select id="ltMode"><option value="text">Write name + title into it</option><option value="variant">One variant per person</option></select></div>
+      <div class="narrow"><label for="ltDelay" style="margin-top:0">Show after (s)</label><input id="ltDelay" type="number" min="0" step="0.5"></div>
+      <div class="narrow"><label for="ltOff" style="margin-top:0">Off after (s)</label><input id="ltOff" type="number" min="0" step="1" placeholder="Never"></div>
+    </div>
+    <div class="row lt-keys" style="max-width:900px">
+      <div><label for="ltNameKey">Name goes into</label><select id="ltNameKey"></select></div>
+      <div><label for="ltTitleKey">Title goes into</label><select id="ltTitleKey"></select></div>
+    </div>
+    <div class="sub">People</div>
+    <table class="map-table" id="castTable" data-mode="text">
+      <thead><tr><th style="width:20%">Mukana person</th><th style="width:11%">Role</th><th style="width:21%">Video source</th>
+        <th class="lt-text" style="width:21%">Name on screen</th><th class="lt-text" style="width:23%">Title</th>
+        <th class="lt-var" style="width:44%" title="The variant of the lower third layer with this person's name and title">Their lower third variant</th><th></th></tr></thead>
+      <tbody id="castBody"></tbody>
+    </table>
+    <div class="hint"><b>Host</b> is never put into a panelist layout. <b>Reader</b> is put in by <i>Role into slot</i> while the question is read, and counts as a panelist only while answering on that question. <b>Panelists</b> fill the slots when they answer.</div>
+    <div class="hint" id="dupHint"></div>
+    <div class="hint" id="rosterHint"></div>
+    <div class="btns"><button id="btnAddCast">+ Add person</button><button id="btnAddOnline">Add all from pre-flight</button><button id="btnAddQuestion" title="Everyone with a raised hand on the question that is live now, for people who arrived after the pre-flight question was done">Add all from current question</button><button id="btnClearRoster" class="danger">Clear pre-flight list</button></div>
+    <div class="sub">Layouts, by how many panelists are answering</div>
+    <table class="map-table">
+      <thead><tr><th style="width:10%">How many</th><th style="width:16%">Shot</th><th style="width:26%">Recall layer set</th><th style="width:26%">Layer with the slots</th><th style="width:18%">Slots</th><th></th></tr></thead>
+      <tbody id="layoutBody"></tbody>
+    </table>
+    <div class="btns"><button id="btnAddLayout">+ Add layout</button></div>
+    <div class="btns"><span class="spacer"></span><button class="primary" id="btnSavePan">Save panelists</button></div>
+  </section>
+
+  <section class="wide">
+    <h2>6 · Live</h2>
     <div class="stats">
       <span>Streams: <b id="streams">–</b></span>
       <span>Updates: <b id="updates">0</b></span>
@@ -137,6 +213,7 @@
     </div>
     <table><tbody id="liveBody"></tbody></table>
     <div class="btns">
+      <button id="btnAuto" title="Automatic layer control (section 4)">Auto layers: Off</button>
       <button id="btnPush">Resend all</button>
       <button id="btnVerify">Verify against mimoLive</button>
       <button id="btnClear" class="danger">Clear mimoLive</button>
@@ -147,7 +224,7 @@
   </section>
 
   <section class="wide">
-    <h2>5 · Service</h2>
+    <h2>7 · Service</h2>
     <div class="row" style="max-width:720px">
       <div><label for="srvHost">Web UI listens on</label><select id="srvHost"></select></div>
       <div class="narrow"><label for="srvPort">Port</label><input id="srvPort" inputmode="numeric"></div>
@@ -174,7 +251,7 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-let FIELDS = [], cfg = null, elements = { layers: [], sources: [] };
+let FIELDS = [], cfg = null, elements = { layers: [], sources: [], layerSets: [] };
 
 function toast(msg, err) {
   const t = $('toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : '');
@@ -211,10 +288,11 @@ async function loadDocs(selectId) {
 
 async function loadElements() {
   const host = cfg.mimolive.host, port = cfg.mimolive.port, doc = cfg.mimolive.documentId;
-  if (!host || !doc) { elements = { layers: [], sources: [] }; return; }
+  if (!host || !doc) { elements = { layers: [], sources: [], layerSets: [] }; return; }
   try {
     elements = await api('GET', `/api/mimolive/elements?host=${encodeURIComponent(host)}&port=${port}&doc=${encodeURIComponent(doc)}`);
-  } catch (e) { elements = { layers: [], sources: [] }; toast('Could not load layers: ' + e.message, true); }
+    elements.layerSets ||= [];
+  } catch (e) { elements = { layers: [], sources: [], layerSets: [] }; toast('Could not load layers: ' + e.message, true); }
 }
 
 function elementOptions(sel) {
@@ -264,6 +342,376 @@ function collectMapping() {
   }).filter(t => t.id && t.key);
 }
 
+// ---- Cue list
+let META = { events: {}, actions: {} };
+const CONTINUE = { none: '—', 'auto-continue': 'Auto-continue', 'auto-follow': 'Auto-follow' };
+const newId = () => Math.random().toString(36).slice(2, 10);
+const optList = (list, sel) => list.map(([v, t]) => `<option value="${esc(v)}" ${v === sel ? 'selected' : ''}>${esc(t)}</option>`).join('');
+const cueRows = () => [...$('cueBody').querySelectorAll('tr')];
+function triggerOptions(t = {}) {
+  const sel = t.type === 'mukana' ? 'mukana:' + t.event : t.type === 'go' ? 'go' : '';
+  return `<option value="">— (only from a cue above)</option><option value="go" ${sel === 'go' ? 'selected' : ''}>GO / Companion</option>`
+    + `<optgroup label="Mukana">${Object.entries(META.events).map(([k, v]) => `<option value="mukana:${k}" ${sel === 'mukana:' + k ? 'selected' : ''}>${esc(v)}</option>`).join('')}</optgroup>`;
+}
+const elKeys = (elKey, re) => ([...elements.layers, ...elements.sources].find(e => e.kind + ':' + e.id === elKey)?.inputKeys || []).filter(k => re.test(k));
+function cueOptions(sel, self) {
+  return '<option value="">— select —</option>' + cueRows().filter(tr => tr.dataset.id !== self)
+    .map(tr => `<option value="${tr.dataset.id}" ${tr.dataset.id === sel ? 'selected' : ''}>${esc(tr.querySelector('.num').textContent + ' ' + tr.querySelector('.c-name').value)}</option>`).join('');
+}
+function targetHtml(a = {}, self) {
+  switch (a.type) {
+    case 'recallSet': case 'setLayersOff': return `<select class="a-set">${setOptions(a.setId).replace('— none —', '— select —')}</select>`;
+    case 'layerLive': case 'layerOff': {
+      const sel = new Set(a.layerIds?.length ? a.layerIds : a.layerId ? [a.layerId] : []);
+      const known = new Set(elements.layers.map(l => l.id));
+      const opts = [...[...sel].filter(id => !known.has(id)).map(id => [id, id.slice(0, 8) + ' (not found)']), ...elements.layers.map(l => [l.id, l.name])];
+      const names = opts.filter(([v]) => sel.has(v)).map(([, t]) => t).join(', ');
+      return `<div style="display:flex;flex-direction:column;flex:1;min-width:0"><select class="a-layers" multiple size="3" title="Several layers: ⌘-click / Ctrl-click">${opts.map(([v, t]) => `<option value="${esc(v)}" ${sel.has(v) ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select><span class="hint a-sum" style="margin:2px 0 0;white-space:normal">${esc(names) || 'Pick one or more (⌘/Ctrl-click)'}</span></div>`;
+    }
+    case 'panelLayout': return '<span class="hint" style="margin:0;align-self:center;white-space:normal;max-width:330px">Shows the <b>panel</b>: everyone approved <b>above the line</b> (and anyone answering) when this cue runs, host in A. Layouts and people from 5 · Panelists.</span>';
+    case 'panelistLayout': return `<select class="a-shot" title="Which layout row: with host, answering only, or the current shot (changed by Change shot cues)">${optList([['host', 'With host'], ['solo', 'Answering only'], ['current', 'Current shot']], a.shot || 'host')}</select><span class="hint" style="margin:0;align-self:center;white-space:normal;max-width:240px">Who is <b>Answering</b> when this cue runs. Nobody = nothing.</span>`;
+    case 'changeShot': return `<select class="a-shot">${optList([['host', 'With host'], ['solo', 'Answering only'], ['hostOnly', 'Host only']], a.shot || 'host')}</select><span class="hint" style="margin:0;align-self:center;white-space:normal;max-width:240px">Right away. Host only is momentary: the next panelist comes back in the last shot.</span>`;
+    case 'panelistLowerThird': return '<span class="hint" style="margin:0;align-self:center;white-space:normal;max-width:330px">Lower third for the one panelist who just started answering (settings in 5 · Panelists). Put it after <i>Panelist layout</i>.</span>';
+    case 'sourceToSlot': case 'roleToSlot': {
+      const slot = `<select class="a-slot" style="max-width:70px">${optList('ABCDEFGHIJKL'.split('').map(x => [x, x]), a.slot || 'B')}</select>`;
+      const what = a.type === 'roleToSlot'
+        ? `<select class="a-role">${optList([['reader', 'Reader'], ['host', 'Host']], a.role || 'reader')}</select>`
+        : `<select class="a-source">${sourceOptions(a.sourceId)}</select>`;
+      return `${what}<span style="align-self:center">→</span><select class="a-layer">${layerOptions(a.layerId)}</select>${slot}`;
+    }
+    case 'signal': {
+      const keys = elKeys('layer:' + a.layerId, /_TypeSignal$/);
+      return `<select class="a-layer">${layerOptions(a.layerId)}</select><select class="a-signal">${optList([...new Set([a.signalId, ...keys].filter(Boolean))].map(k => [k, k.replace(/^tvGroup_\w+__/, '').replace(/_TypeSignal$/, '')]), a.signalId)}</select>`;
+    }
+    case 'writeText': {
+      const el = a.targetId ? `${a.kind || 'layer'}:${a.targetId}` : '';
+      const keys = [...new Set([a.key, ...elKeys(el, /Text|Title|Subtitle|Note|QR|String|URL|Name/i)].filter(Boolean))];
+      return `<select class="a-el">${elementOptions(el)}</select><select class="a-key">${optList(keys.map(k => [k, k.replace(/^tvGroup_/, '')]), a.key)}</select><input class="a-val" placeholder="{name}, {location}" value="${esc(a.value || '')}">`;
+    }
+    case 'wait': {
+      const until = `<select class="a-until" title="Pause until GO / Continue or a Mukana event releases it">${optList([['', 'just wait'], ['go', 'or until GO / Continue'], ...Object.entries(META.events).map(([k, v]) => [k, 'or until: ' + v])], a.until || '')}</select>`;
+      const secs = a.seconds ?? (a.until ? '' : 5);
+      return `<input class="a-secs" type="number" min="0" step="0.5" value="${secs === '' ? '' : Number(secs) || 0}" placeholder="∞" title="Seconds. With 'until': a timeout, empty = no timeout" style="max-width:70px"><span style="align-self:center">s</span>${until}`;
+    }
+    case 'fireCue': return `<select class="a-cue">${cueOptions(a.cueId, self)}</select>`;
+  }
+  return '';
+}
+function readAction(tr) {
+  const q = (c) => tr.querySelector(c);
+  const a = { type: q('.c-act').value };
+  if (q('.a-set')) a.setId = q('.a-set').value;
+  if (q('.a-layer')) a.layerId = q('.a-layer').value;
+  if (q('.a-layers')) a.layerIds = [...q('.a-layers').selectedOptions].map(o => o.value);
+  if (q('.a-slot')) a.slot = q('.a-slot').value;
+  if (q('.a-role')) a.role = q('.a-role').value;
+  if (q('.a-shot')) a.shot = q('.a-shot').value;
+  if (q('.a-source')) a.sourceId = q('.a-source').value;
+  if (q('.a-signal')) a.signalId = q('.a-signal').value;
+  if (q('.a-el')) { const [kind, ...rest] = q('.a-el').value.split(':'); a.kind = kind; a.targetId = rest.join(':'); a.key = q('.a-key').value; a.value = q('.a-val').value; }
+  if (q('.a-secs')) a.seconds = Math.max(0, Number(q('.a-secs').value) || 0);
+  if (q('.a-until')) a.until = q('.a-until').value;
+  if (q('.a-cue')) a.cueId = q('.a-cue').value;
+  return a;
+}
+function wireTarget(tr) {
+  const cell = tr.querySelector('.c-target');
+  const redraw = () => { cell.innerHTML = targetHtml(readAction(tr), tr.dataset.id); wireTarget(tr); };
+  const l = cell.querySelector('.a-layer'), el = cell.querySelector('.a-el');
+  if (l && cell.querySelector('.a-signal')) l.onchange = redraw;
+  if (el) el.onchange = redraw;
+  const multi = cell.querySelector('.a-layers');
+  if (multi) multi.onchange = () => { cell.querySelector('.a-sum').textContent = [...multi.selectedOptions].map(o => o.text).join(', ') || 'Pick one or more (⌘/Ctrl-click)'; };
+}
+function addCue(c = {}) {
+  const tr = document.createElement('tr');
+  tr.dataset.id = c.id || newId();
+  tr._cancels = [...(c.cancels || [])];
+  tr.innerHTML = `
+    <td class="num"></td>
+    <td><input class="c-name" value="${esc(c.name || '')}" title="${esc(c.name || '')}" placeholder="Name"></td>
+    <td><select class="c-trig">${triggerOptions(c.trigger)}</select></td>
+    <td><input class="c-pre" type="number" min="0" step="0.5" value="${Number(c.preWait) || 0}"></td>
+    <td><select class="c-act">${optList(Object.entries(META.actions), c.action?.type || 'recallSet')}</select></td>
+    <td class="c-target"></td>
+    <td><select class="c-cont">${optList(Object.entries(CONTINUE), c.continue || 'none')}</select></td>
+    <td><input class="c-cancels" placeholder="2, 3"></td>
+    <td class="now" style="color:var(--muted)">–</td>
+    <td class="cue-btns"><button class="go primary" title="Fire this cue now (save first)">GO</button><button class="up" title="Move up">↑</button><button class="down" title="Move down">↓</button><button class="danger x" title="Remove">✕</button></td>`;
+  const q = (x) => tr.querySelector(x);
+  q('.c-target').innerHTML = targetHtml({ type: 'recallSet', ...c.action }, tr.dataset.id);
+  wireTarget(tr);
+  q('.c-act').onchange = () => { q('.c-target').innerHTML = targetHtml({ type: q('.c-act').value }, tr.dataset.id); wireTarget(tr); };
+  q('.c-cancels').onchange = () => {
+    const rows = cueRows();
+    tr._cancels = q('.c-cancels').value.split(/[^0-9]+/).filter(Boolean).map(n => rows[Number(n) - 1]?.dataset.id).filter(id => id && id !== tr.dataset.id);
+    renumberCues();
+  };
+  q('.c-name').oninput = () => { q('.c-name').title = q('.c-name').value; refreshCueRefs(); };
+  q('.go').onclick = async () => { try { await api('POST', `/api/cues/${tr.dataset.id}/go`); } catch (e) { toast(e.message.startsWith('No cue') ? 'Save cues first' : e.message, true); } };
+  q('.up').onclick = () => { tr.previousElementSibling && tr.parentNode.insertBefore(tr, tr.previousElementSibling); renumberCues(); };
+  q('.down').onclick = () => { tr.nextElementSibling && tr.parentNode.insertBefore(tr.nextElementSibling, tr); renumberCues(); };
+  q('.x').onclick = () => { tr.remove(); renumberCues(); };
+  $('cueBody').appendChild(tr);
+  renumberCues();
+  return tr;
+}
+// Numbers follow the row order; "Cancels" and "Fire cue" keep pointing at the same cues.
+function renumberCues() {
+  const rows = cueRows(), num = Object.fromEntries(rows.map((tr, i) => [tr.dataset.id, i + 1]));
+  rows.forEach((tr, i) => {
+    tr.querySelector('.num').textContent = i + 1;
+    tr._cancels = tr._cancels.filter(id => num[id]);
+    tr.querySelector('.c-cancels').value = tr._cancels.map(id => num[id]).join(', ');
+  });
+  refreshCueRefs();
+}
+function refreshCueRefs() {
+  cueRows().forEach(tr => { const s = tr.querySelector('.a-cue'); if (s) s.innerHTML = cueOptions(s.value, tr.dataset.id); });
+}
+function renderCues() {
+  $('cueBody').innerHTML = '';
+  (cfg.layerControl?.cues || []).forEach(addCue);
+}
+function collectCues() {
+  return cueRows().map(tr => {
+    const q = (x) => tr.querySelector(x), trig = q('.c-trig').value;
+    return {
+      id: tr.dataset.id, name: q('.c-name').value.trim(),
+      trigger: trig.startsWith('mukana:') ? { type: 'mukana', event: trig.slice(7) } : { type: trig || 'none' },
+      preWait: Math.max(0, Number(q('.c-pre').value) || 0), action: readAction(tr), continue: q('.c-cont').value, cancels: tr._cancels,
+    };
+  });
+}
+function renderCueStatus(list = []) {
+  const by = Object.fromEntries(list.map(c => [c.id, c]));
+  cueRows().forEach(tr => {
+    const c = by[tr.dataset.id], cell = tr.querySelector('.now');
+    tr.classList.toggle('running', !!c?.running);
+    cell.dataset.endsAt = c?.endsAt || '';
+    cell.dataset.phase = c?.running ? c.phase : '';
+    cell.dataset.until = c?.until || '';
+    const go = tr.querySelector('.go');
+    go.textContent = c?.phase === 'paused' ? 'Continue' : 'GO';
+    go.title = c?.phase === 'paused' ? 'Continue this paused cue' : 'Fire this cue now (save first)';
+    paintCueCell(cell);
+  });
+}
+function paintCueCell(cell) {
+  const phase = cell.dataset.phase, ends = Number(cell.dataset.endsAt);
+  if (!phase) { cell.innerHTML = '<span style="color:var(--muted)">–</span>'; return; }
+  const left = ends ? ` ${Math.max(0, (ends - Date.now()) / 1000).toFixed(1)} s` : '';
+  if (phase === 'paused') {
+    const u = cell.dataset.until;
+    cell.innerHTML = `<span style="color:var(--warn);font-weight:600" title="Until ${esc(u === 'go' ? 'GO / Continue' : META.events[u] || u)}">⏸ paused${left}</span>`;
+    return;
+  }
+  cell.innerHTML = `<span class="onair">● ${phase === 'acting' ? 'running' : phase}${left}</span>`;
+}
+setInterval(() => document.querySelectorAll('#cueBody .now').forEach(c => c.dataset.endsAt && paintCueCell(c)), 200);
+function renderSim(s) {
+  const who = $('simWho'), keep = who.value;
+  const cast = (cfg.panelists?.cast || []).filter(c => c.uid);
+  who.innerHTML = optList([['', 'Sample panelist'], ...cast.map(c => [c.uid, c.screenName || c.name || c.uid])], keep);
+  if (!$('simBtns').children.length) {
+    for (const [k, v] of Object.entries(META.events).filter(([k]) => k !== 'answeringChange')) { // happens with start/stop
+      const b = document.createElement('button'); b.textContent = v; b.dataset.event = k;
+      b.onclick = async () => { try { renderStatus(await api('POST', `/api/simulate/${k}`, { uid: $('simWho').value || undefined })); } catch (e) { toast(e.message, true); } };
+      $('simBtns').appendChild(b);
+    }
+    const end = document.createElement('button'); end.id = 'btnSimEnd'; end.className = 'primary'; end.textContent = 'End simulation · back to Mukana';
+    end.onclick = async () => renderStatus(await api('POST', '/api/simulate/end'));
+    $('simBtns').appendChild(end);
+  }
+  $('btnSimEnd').style.display = s.simulating ? '' : 'none';
+  $('simHint').innerHTML = s.simulating
+    ? '<b style="color:var(--warn)">Simulating.</b> Mukana is ignored and mimoLive shows a sample question. Click <b>End simulation</b> to go back to Mukana.'
+    : 'Each button acts as if it happened in Mukana: cues fire, question text and panelists follow. The first click switches from Mukana to a sample question.';
+}
+
+// ---- Panelists
+let online = [], roster = [], ltVariants = [], lastCand = '';
+const ROLES = { panelist: 'Panelist', host: 'Host', reader: 'Reader' };
+// New row from a Mukana person. In "write name + title" mode the title starts as their Mukana location.
+const castFrom = (p) => ({ uid: p.uid, name: p.name, title: $('ltMode').value === 'text' ? (p.loc || '') : '' });
+// The lower third layer to use when none is saved yet: one named like "Lower Third".
+const suggestLtLayer = () => (elements.layers.find(l => norm(l.name) === 'lower third') || elements.layers.find(l => /lower\s*third/i.test(l.name)))?.id || '';
+// Pick panelists from the pre-flight hands; fall back to who is online now.
+const candidates = () => (roster.length ? roster : online);
+// Video sources grouped by type: Zoom, cameras and NDI first.
+const SOURCE_GROUPS = [
+  ['Zoom', /zoom/i], ['Camera inputs', /devicevideo|camera|capturedevice/i], ['NDI', /ndi/i],
+  ['Placeholders', /placeholder/i], ['Screen capture', /screen/i], ['Movies & media', /movie|media|playlist/i],
+  ['Images', /image/i], ['QR codes', /qrcode/i], ['Social', /social/i],
+];
+const sourceGroup = (type) => (SOURCE_GROUPS.find(([, re]) => re.test(type)) || ['Other'])[0];
+const norm = (x) => String(x || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+const suggestVariant = (name) => ltVariants.find(v => norm(v.name).startsWith(norm(name)))?.id || '';
+async function loadVariantsFor(layer) {
+  ltVariants = [];
+  if (layer && cfg.mimolive.documentId) { try { ltVariants = await api('GET', `/api/mimolive/variants?layer=${encodeURIComponent(layer)}`); } catch {} }
+}
+async function loadVariants() {
+  const layer = $('ltLayer').value;
+  ltVariants = [];
+  if (layer) { try { ltVariants = await api('GET', `/api/mimolive/variants?layer=${encodeURIComponent(layer)}`); } catch (e) { toast('Could not load variants: ' + e.message, true); } }
+}
+function variantOptions(sel, selName) {
+  if (!$('ltLayer').value) return '<option value="">— choose the lower third layer above —</option>';
+  if (!ltVariants.length && !sel) return '<option value="">— this layer has no variants —</option>';
+  let html = '<option value="">— no lower third —</option>';
+  if (sel && !ltVariants.some(v => v.id === sel)) html += `<option value="${esc(sel)}" selected>${esc(selName || sel)} (not found)</option>`;
+  return html + ltVariants.map(v => `<option value="${esc(v.id)}" ${v.id === sel ? 'selected' : ''}>${esc(v.name)}</option>`).join('');
+}
+function panelistOptions(uid, name) {
+  const list = candidates();
+  let html = '<option value="">— select —</option>';
+  if (uid && !list.some(p => p.uid === uid)) html += `<option value="${esc(uid)}" selected>${esc(name || uid)}</option>`;
+  const label = roster.length ? 'Raised hand on pre-flight' : 'Online now (no pre-flight hands yet)';
+  return html + (list.length ? `<optgroup label="${label}">${list.map(p => `<option value="${esc(p.uid)}" ${p.uid === uid ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</optgroup>` : '');
+}
+function sourceOptions(sel, selName) {
+  let html = '<option value="">— select —</option>';
+  if (sel && !elements.sources.some(x => x.id === sel)) html += `<option value="${esc(sel)}" selected>${esc(selName || sel)} (not found)</option>`;
+  const order = [...SOURCE_GROUPS.map(([g]) => g), 'Other'];
+  const byName = (a, b) => a.name.localeCompare(b.name, undefined, { numeric: true });
+  return html + order.map(g => {
+    const items = elements.sources.filter(x => sourceGroup(x.type || '') === g).sort(byName);
+    return items.length ? `<optgroup label="${g}">${items.map(x => `<option value="${esc(x.id)}" ${x.id === sel ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</optgroup>` : '';
+  }).join('');
+}
+const selText = (sel) => sel.value ? sel.options[sel.selectedIndex].text.replace(/ \(not found\)$/, '') : '';
+function addCast(c = {}) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><select class="p">${panelistOptions(c.uid, c.name)}</select></td>
+    <td><select class="role">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${(c.role || 'panelist') === k ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
+    <td><select class="src">${sourceOptions(c.sourceId, c.sourceName)}</select></td>
+    <td class="lt-text"><input class="sn" placeholder="${esc(c.name || 'Mukana name')}" value="${esc(c.screenName || '')}"></td>
+    <td class="lt-text"><input class="ti" placeholder="Location or title" value="${esc(c.title || '')}"></td>
+    <td class="lt-var"><select class="v">${variantOptions(c.ltVariantId, c.ltVariantName)}</select></td>
+    <td style="width:1%"><button class="danger x" title="Remove">✕</button></td>`;
+  const p = tr.querySelector('.p'), v = tr.querySelector('.v');
+  v.disabled = !$('ltLayer').value;
+  p.onchange = () => {
+    if (!v.value) v.value = suggestVariant(selText(p));
+    tr.querySelector('.sn').placeholder = selText(p) || 'Mukana name';
+    const ti = tr.querySelector('.ti'), who = [...roster, ...online].find(x => x.uid === p.value);
+    if (!ti.value && who) ti.value = castFrom(who).title;
+  };
+  tr.querySelector('.x').onclick = () => { tr.remove(); markDuplicates(); };
+  p.addEventListener('change', markDuplicates);
+  $('castBody').appendChild(tr);
+  markDuplicates();
+  return tr;
+}
+const defaultSlots = (n) => 'BCDEFGHIJKL'.slice(0, Math.max(1, n)).split('').join(', ');
+function setOptions(sel, selName) {
+  let html = '<option value="">— none —</option>';
+  if (sel && !elements.layerSets.some(x => x.id === sel)) html += `<option value="${esc(sel)}" selected>${esc(selName || sel)} (not found)</option>`;
+  return html + elements.layerSets.map(x => `<option value="${esc(x.id)}" ${x.id === sel ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+}
+function layerOptions(sel, selName) {
+  let html = '<option value="">— select —</option>';
+  if (sel && !elements.layers.some(x => x.id === sel)) html += `<option value="${esc(sel)}" selected>${esc(selName || sel)} (not found)</option>`;
+  return html + elements.layers.map(x => `<option value="${esc(x.id)}" ${x.id === sel ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+}
+const LAYOUT_SHOTS = [['host', 'With host'], ['solo', 'Answering only'], ['hostOnly', 'Host only']];
+function addLayout(l = {}) {
+  const shot = l.shot || 'host';
+  const n = shot === 'hostOnly' ? 0 : l.count || $('layoutBody').children.length + 1;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="n" type="number" min="0" step="1" value="${n}"></td>
+    <td><select class="shot" title="With host: host in A, panelists from B. Answering only: panelists from A. Host only: the host alone (how many = 0).">${optList(LAYOUT_SHOTS, shot)}</select></td>
+    <td><select class="set">${setOptions(l.setId, l.setName)}</select></td>
+    <td><select class="lay">${layerOptions(l.layerId, l.layerName)}</select></td>
+    <td><input class="slots" value="${esc((l.slots || []).join(', ') || defaultSlots(n))}"></td>
+    <td style="width:1%"><button class="danger x" title="Remove">✕</button></td>`;
+  const set = tr.querySelector('.set'), lay = tr.querySelector('.lay');
+  // A set usually contains a layer with the same name (e.g. "2 UP"): suggest it.
+  set.onchange = () => { const m = elements.layers.find(x => norm(x.name) === norm(selText(set))); if (m && !lay.value) lay.value = m.id; };
+  const sh = tr.querySelector('.shot'), num = tr.querySelector('.n'), slots = tr.querySelector('.slots');
+  const fit = () => {
+    const hostOnly = sh.value === 'hostOnly';
+    num.disabled = slots.disabled = lay.disabled = hostOnly;
+    if (hostOnly) { num.value = 0; slots.value = ''; }
+    else if (Number(num.value) < 1) num.value = 1;
+  };
+  sh.onchange = () => {
+    fit();
+    // Answering only starts in A, with host starts in B.
+    if (sh.value !== 'hostOnly') slots.value = (sh.value === 'solo' ? 'ABCDEFGHIJKL' : 'BCDEFGHIJKL').slice(0, Math.max(1, Number(num.value))).split('').join(', ');
+  };
+  fit();
+  tr.querySelector('.x').onclick = () => tr.remove();
+  $('layoutBody').appendChild(tr);
+}
+// Text inputs of the lower third layer that a name or title can go into.
+function renderLtKeys(nameKey, titleKey) {
+  const layer = elements.layers.find(l => l.id === $('ltLayer').value);
+  const keys = (layer?.inputKeys || []).filter(k => /^tvGroup_Content__/.test(k) && !/_Type(?!Multiline)|Font|Color/.test(k));
+  const opts = (sel, def) => [...new Set([sel || def, ...keys])].map(k => `<option ${k === (sel || def) ? 'selected' : ''}>${esc(k)}</option>`).join('');
+  $('ltNameKey').innerHTML = opts(nameKey, 'tvGroup_Content__Title');
+  $('ltTitleKey').innerHTML = opts(titleKey, 'tvGroup_Content__Subtitle');
+}
+function applyLtMode() {
+  const mode = $('ltMode').value;
+  $('castTable').dataset.mode = mode;
+  document.querySelector('.lt-keys').style.display = mode === 'text' ? '' : 'none';
+}
+function renderPanelists(p = cfg.panelists || {}) {
+  $('ltLayer').innerHTML = layerOptions(p.ltLayerId || suggestLtLayer()).replace('— select —', '— none —');
+  $('ltMode').value = p.ltMode || 'text';
+  renderLtKeys(p.ltNameKey, p.ltTitleKey);
+  applyLtMode();
+  $('ltDelay').value = p.ltDelaySec ?? 3;
+  $('ltOff').value = Number(p.ltOffAfterSec) > 0 ? p.ltOffAfterSec : '';
+  $('castBody').innerHTML = ''; (p.cast || []).forEach(addCast);
+  $('layoutBody').innerHTML = ''; (p.layouts || []).forEach(addLayout);
+}
+function collectPanelists() {
+  const cast = [...$('castBody').querySelectorAll('tr')].map(tr => {
+    const p = tr.querySelector('.p'), src = tr.querySelector('.src'), v = tr.querySelector('.v');
+    return { uid: p.value, name: selText(p), role: tr.querySelector('.role').value, screenName: tr.querySelector('.sn').value.trim(), title: tr.querySelector('.ti').value.trim(), sourceId: src.value, sourceName: selText(src), ltVariantId: v.value, ltVariantName: selText(v) };
+  }).filter(c => c.uid);
+  const layouts = [...$('layoutBody').querySelectorAll('tr')].map(tr => {
+    const set = tr.querySelector('.set'), lay = tr.querySelector('.lay'), shot = tr.querySelector('.shot').value;
+    if (shot === 'hostOnly') return { count: 0, shot, setId: set.value, setName: selText(set), layerId: '', layerName: '', slots: [] };
+    return { count: Math.max(1, Math.round(Number(tr.querySelector('.n').value) || 1)), shot, setId: set.value, setName: selText(set), layerId: lay.value, layerName: selText(lay),
+      slots: tr.querySelector('.slots').value.toUpperCase().split(/[^A-Z]+/).filter(x => /^[A-L]$/.test(x)) };
+  }).filter(l => l.setId || l.layerId);
+  return { cast, layouts, ltLayerId: $('ltLayer').value, ltMode: $('ltMode').value, ltNameKey: $('ltNameKey').value, ltTitleKey: $('ltTitleKey').value, ltDelaySec: Math.max(0, Number($('ltDelay').value) || 0), ltOffAfterSec: Math.max(0, Number($('ltOff').value) || 0) };
+}
+// The same Mukana person twice in the People table: only the first row is used.
+function markDuplicates() {
+  const seen = new Map();
+  [...$('castBody').querySelectorAll('tr')].forEach(tr => {
+    const uid = tr.querySelector('.p').value, first = uid && seen.get(uid);
+    tr.classList.toggle('dup', !!first);
+    tr.title = first ? 'Same person as an earlier row: only the first row is used' : '';
+    if (uid && !first) seen.set(uid, tr);
+  });
+  const n = $('castBody').querySelectorAll('tr.dup').length;
+  $('dupHint').innerHTML = n ? `<b style="color:var(--warn)">${n} duplicate row${n > 1 ? 's' : ''}</b> (highlighted): the same Mukana person is in the table more than once. Only the first row is used. A reader already counts as a panelist while answering.` : '';
+}
+function renderRosterHint() {
+  $('btnAddOnline').textContent = roster.length ? `Add all from pre-flight (${roster.length})` : `Add everyone online (${online.length})`;
+  $('rosterHint').innerHTML = roster.length
+    ? `<b>${roster.length}</b> raised their hand on the pre-flight question. They are remembered after the question moves to Answered.`
+    : 'Nobody has raised a hand on the pre-flight question yet (text contains “Pre-flight checklist”). Until then you can pick from the panelists online now. Hands are captured while sync is running.';
+}
+function renderPanelistStatus(s) {
+  const p = s.panelists || { answering: [], placed: [] };
+  const ans = p.answering.length ? p.answering.map(x => `<b>${esc(x.name)}</b>${x.role !== 'panelist' ? ` (${esc(x.role)})` : ''}`).join(', ') : '<b>nobody</b>';
+  const panel = p.panel?.length ? ` · Above the line: ${p.panel.map(x => esc(x.name)).join(', ')}` : '';
+  const placed = p.placed.length ? ` · On screen (${p.mode === 'panel' ? 'panel' : 'answering'}): ${p.placed.map(x => `${esc(x.name)}${x.slot ? ' → ' + esc(x.slot) : ''}`).join(', ')}` : '';
+  const lt = p.lowerThird ? ` · Lower third: <b>${esc(p.lowerThird.name)}</b> <span class="onair">● on air</span>` : '';
+  const shotName = { host: 'with host', solo: 'answering only', hostOnly: 'host only' };
+  const shot = ` · Shot: <b>${shotName[p.shot] || p.shot}</b>${p.shot === 'hostOnly' ? ` (next panelist: ${shotName[p.answerShot]})` : ''}`;
+  $('panStatus').innerHTML = `<span>Answering: ${ans}${panel}${placed}${shot}${lt}</span>`;
+}
+
 function renderStatus(s) {
   const pill = $('pill');
   const streams = Object.values(s.streams);
@@ -284,6 +732,19 @@ function renderStatus(s) {
     const head = f.group !== lastGroup ? `<tr><td colspan="2" style="padding-top:14px;color:var(--accent);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px">${esc(lastGroup = f.group)}</td></tr>` : '';
     return head + `<tr><th style="width:26%">${esc(f.label)}${mapped.has(f.id) ? ' <span title="Mapped to mimoLive" style="color:var(--ok)">●</span>' : ''}</th><td class="val">${esc(s.current.values[f.id]) || '<span style="color:var(--muted)">–</span>'}</td></tr>`;
   }).join('');
+  $('btnAuto').textContent = 'Auto layers: ' + (s.autoLayers ? 'On' : 'Off');
+  $('btnAuto').className = s.autoLayers ? 'on' : '';
+  renderCueStatus(s.cues);
+  renderSim(s);
+  if (s.simulating) { pill.textContent = 'SIMULATING'; pill.className = 'pill wait'; }
+  online = s.online || []; roster = s.roster || [];
+  renderRosterHint();
+  const candKey = JSON.stringify(candidates());
+  if (candKey !== lastCand) { // refresh the pickers, keeping what is selected
+    lastCand = candKey;
+    $('castBody').querySelectorAll('.p').forEach(sel => { if (document.activeElement !== sel) { const v = sel.value, n = selText(sel); sel.innerHTML = panelistOptions(v, n); } });
+  }
+  if (s.running || s.simulating) renderPanelistStatus(s); else $('panStatus').innerHTML = '<span>Sync stopped</span>';
   const log = $('log'), atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 10;
   log.innerHTML = s.log.map(l => `<div class="${l.level}"><time>${new Date(l.ts).toLocaleTimeString()}</time>${esc(l.msg)}</div>`).join('');
   if (atBottom) log.scrollTop = log.scrollHeight;
@@ -320,14 +781,52 @@ $('btnDiscover').onclick = async () => {
 
 $('btnSaveMl').onclick = async () => {
   await saveCfg({ mimolive: { host: $('mlHost').value.trim(), port: Number($('mlPort').value) || 8989, documentId: $('mlDoc').value, password: $('mlPassword').value } }, 'mimoLive saved');
-  await loadElements(); renderMapping();
+  await loadElements(); renderMapping(); renderCues(); await loadVariantsFor(cfg.panelists?.ltLayerId || suggestLtLayer()); renderPanelists();
 };
-$('btnClearPw').onclick = () => saveCfg({ mimolive: { clearPassword: true } }, 'mimoLive password removed');
+$('btnClearPw').onclick = (e) => confirmClick(e.currentTarget) && saveCfg({ mimolive: { clearPassword: true } }, 'mimoLive password removed');
 $('btnAddRow').onclick = () => addRow({ field: FIELDS[0].id });
-$('btnReloadEls').onclick = async () => { const keep = collectMapping(); await loadElements(); $('mapBody').innerHTML = ''; (keep.length ? keep : [{}]).forEach(addRow); toast(`${elements.layers.length} layers, ${elements.sources.length} sources`); };
+$('btnReloadEls').onclick = async () => { const keep = collectMapping(), keepCues = collectCues(), keepPan = collectPanelists(); await loadElements(); await loadVariantsFor(keepPan.ltLayerId || suggestLtLayer()); renderPanelists(keepPan); $('mapBody').innerHTML = ''; (keep.length ? keep : [{}]).forEach(addRow); $('cueBody').innerHTML = ''; keepCues.forEach(addCue); toast(`${elements.layers.length} layers, ${elements.sources.length} sources`); };
 $('btnSaveMap').onclick = () => saveCfg({ targets: collectMapping() }, 'Mapping saved');
 $('btnStart').onclick = async () => { try { renderStatus(await api('POST', '/api/start')); } catch (e) { toast(e.message, true); } };
-$('btnStop').onclick = async () => renderStatus(await api('POST', '/api/stop'));
+$('btnStop').onclick = async (e) => { if (confirmClick(e.currentTarget)) renderStatus(await api('POST', '/api/stop')); };
+$('btnAddCast').onclick = () => addCast();
+$('btnAddOnline').onclick = () => {
+  const have = new Set([...$('castBody').querySelectorAll('.p')].map(x => x.value));
+  const list = candidates(), add = list.filter(p => !have.has(p.uid));
+  add.forEach(p => { const tr = addCast(castFrom(p)); tr.querySelector('.v').value = suggestVariant(p.name); });
+  toast(add.length ? `${add.length} panelist(s) added. Pick their video sources, then save.` : (list.length ? 'Everyone is already in the table' : 'No panelists yet (start sync first)'), !add.length);
+};
+$('btnAddQuestion').onclick = async () => {
+  try {
+    const { people, added } = await api('POST', '/api/panelists/roster/from-question');
+    const have = new Set([...$('castBody').querySelectorAll('.p')].map(x => x.value));
+    roster = [...roster, ...added]; lastCand = ''; // pickers refresh on the next status poll too
+    const rows = people.filter(p => !have.has(p.uid));
+    rows.forEach(p => { const tr = addCast(castFrom(p)); tr.querySelector('.v').value = suggestVariant(p.name); });
+    toast(!people.length ? 'Nobody has a hand up on the live question' : rows.length ? `${rows.length} added from the live question. Set role and video source, then save.` : 'Everyone on the live question is already in the table', !rows.length);
+  } catch (e) { toast(e.message, true); }
+};
+$('btnClearRoster').onclick = async (e) => {
+  if (!confirmClick(e.currentTarget, 'Forgets everyone on the pre-flight list for this event.')) return;
+  renderStatus(await api('POST', '/api/panelists/roster/clear')); toast('Pre-flight list cleared');
+};
+$('btnAddLayout').onclick = () => addLayout();
+$('ltMode').onchange = applyLtMode;
+$('ltLayer').onchange = async () => {
+  renderLtKeys($('ltNameKey').value, $('ltTitleKey').value);
+  const keep = collectPanelists().cast;
+  await loadVariants();
+  $('castBody').innerHTML = ''; keep.forEach(c => { const tr = addCast({ ...c, ltVariantId: '' }); tr.querySelector('.v').value = suggestVariant(c.name); });
+};
+$('btnSavePan').onclick = async () => { await saveCfg({ panelists: collectPanelists() }, 'Panelists saved'); renderPanelists(); };
+$('btnAddPanCues').onclick = async (e) => {
+  if (!confirmClick(e.currentTarget, 'Adds Reader into B, Question overlay off, Panelist layout, Panelist name and Panelists done to the cue list.')) return;
+  try { cfg = await api('POST', '/api/cues/add-panelist-cues'); renderCues(); toast('Panelist cues added to the cue list'); } catch (e2) { toast(e2.message, true); }
+};
+$('btnAddCue').onclick = () => addCue({ trigger: { type: 'none' } });
+$('btnSaveCues').onclick = async () => { await saveCfg({ layerControl: { cues: collectCues() } }, 'Cues saved'); renderCues(); };
+$('btnStopAll').onclick = async () => { renderCueStatus(await api('POST', '/api/cues/stop-all')); toast('All cues stopped'); };
+$('btnAuto').onclick = () => saveCfg({ layerControl: { enabled: !cfg.layerControl?.enabled } }, cfg.layerControl?.enabled ? 'Auto layers off' : 'Auto layers on');
 $('btnPush').onclick = async () => { await api('POST', '/api/push'); toast('Sent'); };
 $('btnVerify').onclick = async () => {
   try {
@@ -338,7 +837,7 @@ $('btnVerify').onclick = async () => {
     toast(rows.every(r => r.ok) ? 'All values match' : 'Mismatch found', !rows.every(r => r.ok));
   } catch (e) { toast(e.message, true); }
 };
-$('btnClear').onclick =async () => { await api('POST', '/api/clear'); toast('mimoLive cleared'); };
+$('btnClear').onclick = async (e) => { if (!confirmClick(e.currentTarget)) return; await api('POST', '/api/clear'); toast('mimoLive cleared'); };
 
 async function renderServer() {
   let st; try { st = await api('GET', '/api/server'); } catch { return; }
@@ -351,10 +850,10 @@ async function renderServer() {
   $('srvHint').innerHTML = (locked.length ? `${locked.join(' and ')} ${locked.length > 1 ? 'are' : 'is'} set by environment variable and can't be changed here. ` : '')
     + 'Changes take effect immediately and are remembered. The page moves to the new address.';
 }
-$('btnSrvApply').onclick = async () => {
+$('btnSrvApply').onclick = async (e) => {
   const host = $('srvHost').value, port = Number($('srvPort').value);
   const local = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
-  if (host === '127.0.0.1' && !local && !confirmInline('“This machine only” means you lose access from this computer. Click again to confirm.', 'srvlocal')) return;
+  if (host === '127.0.0.1' && !local && !confirmClick(e.currentTarget, '“This machine only” means you lose access from this computer.')) return;
   try {
     await api('POST', '/api/server', { host, port });
     const nextHost = host === '0.0.0.0' ? location.hostname : (host === '127.0.0.1' && local ? location.hostname : host);
@@ -367,7 +866,7 @@ $('btnSrvApply').onclick = async () => {
 async function renderAutostart() {
   let st; try { st = await api('GET', '/api/autostart'); } catch { return; }
   const btns = $('asBtns'); btns.innerHTML = '';
-  const b = (label, cls, fn) => { const x = document.createElement('button'); x.textContent = label; if (cls) x.className = cls; x.onclick = fn; btns.appendChild(x); };
+  const b = (label, cls, fn) => { const x = document.createElement('button'); x.textContent = label; if (cls) x.className = cls; x.onclick = (e) => fn(e); btns.appendChild(x); };
   if (!st.supported) {
     $('asStatus').innerHTML = `Autostart from the UI is available on macOS only (this machine: <code>${esc(st.platform)}</code>). See the manual for running it as a service on other systems.`;
     return;
@@ -377,32 +876,38 @@ async function renderAutostart() {
   $('asHint').innerHTML = st.installed ? `Agent: <code>${esc(st.plistPath)}</code> · Log: <code>${esc(st.logPath)}</code>` : 'Starts the service when you log in to this Mac and restarts it if it stops. The current port, time zone and UI password are kept.';
   if (!st.installed) {
     b('Start at login', 'primary', async () => { await api('POST', '/api/autostart/enable', {}); toast('Start at login enabled'); renderAutostart(); });
-    if (!st.runningUnderLaunchd) b('Start at login + move to background now', '', async () => {
-      if (!confirmInline('The terminal window will stop the service and it continues in the background. Click again to confirm.', 'handover')) return;
+    if (!st.runningUnderLaunchd) b('Start at login + move to background now', '', async (e) => {
+      if (!confirmClick(e.currentTarget, 'The terminal window will stop the service and it continues in the background.')) return;
       await api('POST', '/api/autostart/enable', { now: true });
       $('asStatus').innerHTML = '<b>Moving to background…</b> The page reconnects in a few seconds. You can close the terminal window.';
       setTimeout(() => location.reload(), 5000);
     });
   } else {
-    if (!st.runningUnderLaunchd) b('Move to background now', '', async () => {
-      if (!confirmInline('The terminal window will stop the service and it continues in the background. Click again to confirm.', 'handover2')) return;
+    if (!st.runningUnderLaunchd) b('Move to background now', '', async (e) => {
+      if (!confirmClick(e.currentTarget, 'The terminal window will stop the service and it continues in the background.')) return;
       await api('POST', '/api/autostart/enable', { now: true });
       $('asStatus').innerHTML = '<b>Moving to background…</b> The page reconnects in a few seconds.';
       setTimeout(() => location.reload(), 5000);
     });
-    b('Turn off start at login', 'danger', async () => {
-      if (st.runningUnderLaunchd && !confirmInline('This also stops the running service. Start it again with npm start. Click again to confirm.', 'disable')) return;
+    b('Turn off start at login', 'danger', async (e) => {
+      if (!confirmClick(e.currentTarget, st.runningUnderLaunchd ? 'This also stops the running service. Start it again with npm start.' : '')) return;
       const r = await api('POST', '/api/autostart/disable');
       if (r.stopping) $('asStatus').innerHTML = '<b>Service stopped.</b> Start it again from a terminal with <code>npm start</code>.';
       else { toast('Start at login turned off'); renderAutostart(); }
     });
   }
 }
-// Two-click confirm without browser dialogs
-const pendingConfirm = {};
-function confirmInline(msg, key) {
-  if (pendingConfirm[key] && Date.now() - pendingConfirm[key] < 6000) { delete pendingConfirm[key]; return true; }
-  pendingConfirm[key] = Date.now(); toast(msg); return false;
+// Two-click confirm without browser dialogs: the first click arms the button for 3 s
+// ("Click again to confirm"), the second click inside that time goes ahead.
+function confirmClick(btn, msg) {
+  const disarm = () => { clearTimeout(btn._armed); btn._armed = null; btn.textContent = btn.dataset.label; btn.classList.remove('armed'); };
+  if (btn._armed) { disarm(); return true; }
+  btn.dataset.label = btn.textContent;
+  btn.textContent = 'Click again to confirm';
+  btn.classList.add('armed');
+  btn._armed = setTimeout(disarm, 3000);
+  if (msg) toast(msg);
+  return false;
 }
 
 (async () => {
@@ -414,6 +919,10 @@ function confirmInline(msg, key) {
   });
   await loadElements();
   renderMapping();
+  META = await api('GET', '/api/cues/meta');
+  renderCues();
+  await loadVariantsFor(cfg.panelists?.ltLayerId || suggestLtLayer());
+  renderPanelists();
   poll();
   renderServer();
   renderAutostart();

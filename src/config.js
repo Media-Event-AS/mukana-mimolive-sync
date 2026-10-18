@@ -58,6 +58,19 @@ export const DEFAULTS = {
   server: { host: '0.0.0.0', port: 8790 },
   // [{ field, kind: 'layer'|'source', id, key }]
   targets: [],
+  // Automatic layer control. rules: [{ id, trigger: 'question'|'panelist', action: 'layer'|'layerSet',
+  //   layerId | onSetId + offSetId (optional), offAfterSec (0 = stay until cleared), label }]
+  layerControl: { enabled: false, cues: [] },
+  // Panelist automation (also needs layerControl.enabled).
+  //   cast: [{ uid, name, role: 'panelist'|'host'|'reader', sourceId, sourceName, screenName, title, ltVariantId, ltVariantName }]
+  //   ltMode: 'text' (write screenName/title into ltNameKey/ltTitleKey) | 'variant' (take ltVariantId live)
+  //   layouts: [{ count, setId, setName, layerId, layerName, slots: ['B', 'C'] }]
+  //   roster: { eventId, people: [{ uid, name, loc }] } – hands captured on the pre-flight question
+  //   rosterMatch: text that identifies the pre-flight question
+  panelists: {
+    cast: [], layouts: [], ltLayerId: '', ltMode: 'text', ltNameKey: 'tvGroup_Content__Title', ltTitleKey: 'tvGroup_Content__Subtitle',
+    ltDelaySec: 3, ltOffAfterSec: 8, rosterMatch: 'Pre-flight checklist',
+  },
   autoStart: false,
 };
 
