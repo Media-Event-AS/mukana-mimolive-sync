@@ -1,6 +1,6 @@
 {
   "name": "mukana-mimolive-sync",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Headless sync from Mukana (Firebase RTDB) to mimoLive layers, with advanced automation: cue list, panelist layouts and lower thirds. No browser or extension required.",
   "author": {
     "name": "Ronny Hofsøy",
