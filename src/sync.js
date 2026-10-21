@@ -3,7 +3,7 @@
 // Sync engine: Mukana RTDB streams -> derived fields -> mimoLive targets.
 import { EventEmitter } from 'node:events';
 import { TokenManager, RtdbStream } from './firebase.js';
-import { MimoLive } from './mimolive.js';
+import { MimoLive, MimoLiveAuthError } from './mimolive.js';
 import { FIELDS } from './config.js';
 import { CueEngine, detectEvents, EVENTS } from './cues.js';
 import { PanelistController } from './panelists.js';
@@ -206,6 +206,7 @@ export class SyncEngine extends EventEmitter {
     this.clearing = false;
     this.cues = new CueEngine(this);
     this.sim = null; // { trees, n } while simulating: replaces the Mukana input
+    this.mimoHealth = { state: 'unset', message: 'No mimoLive set', checkedAt: null };
     this.panelists = new PanelistController(this);
     this.log = [];
     this.stats = { updates: 0, errors: 0, lastUpdate: null };
@@ -289,6 +290,43 @@ export class SyncEngine extends EventEmitter {
     this.cues.reset();
     this.panelists.reset();
     this.addLog('info', 'Stopped');
+  }
+
+  /**
+   * Check mimoLive every few seconds, sync running or not: reachable, password, document open.
+   * state: ok | nodoc (reachable, show document not open) | auth | error | unset
+   */
+  startHealthCheck(everyMs = 5000) {
+    let seq = 0;
+    const check = async () => {
+      const mine = ++seq; // only the newest check counts (an old address may still be timing out)
+      const m = this.getConfig().mimolive;
+      let h;
+      if (!m.host) h = { state: 'unset', message: 'No mimoLive set' };
+      else {
+        try {
+          const docs = await new MimoLive(m).documents();
+          const doc = docs.find((d) => d.id === String(m.documentId));
+          h = !m.documentId
+            ? { state: 'nodoc', message: `Reachable at ${m.host}, no document chosen` }
+            : doc
+              ? { state: 'ok', message: `${m.host} · ${doc.name}` }
+              : { state: 'nodoc', message: `Reachable at ${m.host}, but the show document is not open` };
+        } catch (e) {
+          h = e instanceof MimoLiveAuthError
+            ? { state: 'auth', message: m.password ? 'The saved mimoLive password is wrong: correct it in 2 · mimoLive' : 'mimoLive requires a password: enter it in 2 · mimoLive' }
+            : { state: 'error', message: `Not reachable at ${m.host}:${m.port} (${e.name === 'TimeoutError' ? 'timeout' : e.cause?.code || e.message})` };
+        }
+      }
+      if (mine !== seq) return;
+      const changed = h.state !== this.mimoHealth.state;
+      this.mimoHealth = { ...h, checkedAt: Date.now() };
+      if (changed && this.mimoHealth.state !== 'unset') this.addLog(h.state === 'ok' ? 'info' : 'error', `mimoLive: ${h.message}`);
+    };
+    this.checkMimoLive = check; // run now, e.g. after the mimoLive settings changed
+    check();
+    this.healthTimer = setInterval(check, everyMs);
+    this.healthTimer.unref?.();
   }
 
   /** All streams have delivered their first snapshot. */
@@ -497,6 +535,7 @@ export class SyncEngine extends EventEmitter {
       current: this.current,
       stats: this.stats,
       autoLayers: !!this.getConfig().layerControl?.enabled,
+      mimolive: this.mimoHealth,
       cues: this.cues.status(),
       simulating: !!this.sim,
       panelists: this.panelists.status(),

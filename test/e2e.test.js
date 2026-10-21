@@ -8,8 +8,10 @@ import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 import { deriveFields, extractUrl, cleanText, onlinePanelists, handsPeople, findQuestions } from '../src/sync.js';
 import { detectEvents, migrateRules, addPanelistCues } from '../src/cues.js';
+import { applyShow, slug } from '../src/profiles.js';
 import { applyEvent } from '../src/firebase.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -133,6 +135,14 @@ assert.equal(d3.values.nextName, 'Siri', 'rundown available without live questio
     ['Shot: host only', 0, 'none'],
   ]);
 }
+// profiles: the profile's token is used; without one the current login is kept
+{
+  const base = () => ({ mukana: { eventId: 'x', refreshToken: 'RT-now' }, mimolive: { host: 'h', port: 8989, documentId: 'd', password: 'pw' }, targets: [1], layerControl: { enabled: true, cues: [1] }, panelists: {} });
+  const a = applyShow(base(), { mukana: { eventId: 'ev2', refreshToken: 'RT-show' }, targets: [] }, 'S');
+  assert.deepEqual([a.mukana.eventId, a.mukana.refreshToken, a.mimolive.password, a.layerControl.enabled, a.profile], ['ev2', 'RT-show', 'pw', false, 'S']);
+  assert.equal(applyShow(base(), { mukana: { eventId: 'ev3' } }).mukana.refreshToken, 'RT-now', 'no token in the profile: keep the login');
+  assert.equal(slug('Rabalder 2026 – dag 1 (Tromsø)'), 'rabalder-2026-dag-1-tromso');
+}
 console.log('✓ unit');
 
 // ---------- mocks ----------
@@ -183,8 +193,13 @@ const LAYER_SETS = {
   'SET-FULL': { name: 'Fullscreen 2', layers: [{ 'layer-id': 'L-FULL', action: 'live' }] },
   'SET-HOST': { name: 'Fullscreen 1', layers: [{ 'layer-id': 'L-HOSTCAM', action: 'live' }] },
 };
+let mimoPassword = null; // when set, the mock mimoLive requires this password
 const mimo = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
+  if (mimoPassword && req.headers['x-mimolive-password-sha256'] !== crypto.createHash('sha256').update(mimoPassword).digest('hex')) {
+    res.statusCode = 401;
+    return res.end('{}');
+  }
   const vact = u.pathname.match(/\/layers\/([^/]+)\/variants\/([^/]+)\/setLive$/);
   if (vact) {
     mimoEvents.push({ t: Date.now(), type: 'vlive', id: vact[2] });
@@ -238,7 +253,7 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mms-'));
 const appPort = 18790 + Math.floor(Math.random() * 1000);
 fs.writeFileSync(path.join(dataDir, 'config.json'), JSON.stringify({ server: { host: '127.0.0.1', port: appPort } }));
 const child = spawn(process.execPath, [path.join(here, '..', 'src', 'server.js')], {
-  env: { ...process.env, PORT: '', HOST: '', DATA_DIR: dataDir, SECURETOKEN_URL: `http://127.0.0.1:${securePort}/v1/token` },
+  env: { ...process.env, PORT: '', HOST: '', DATA_DIR: dataDir, SECURETOKEN_URL: `http://127.0.0.1:${securePort}/v1/token`, MIMO_HEALTH_MS: '300' },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 let childOut = '';
@@ -308,6 +323,28 @@ try {
   assert.equal(keep.json.mimolive.hasPassword, true, 'empty field keeps stored password');
   const cleared = await api('POST', '/api/config', { mimolive: { clearPassword: true } });
   assert.equal(cleared.json.mimolive.hasPassword, false);
+
+  // status light: mimoLive reachable with the document open / document not open / not reachable
+  const mimoState = async () => (await api('GET', '/api/status')).json.mimolive;
+  await waitFor(async () => (await mimoState()).state === 'ok', 'mimoLive ok');
+  assert.match((await mimoState()).message, /Show\.tvshow/);
+  await api('POST', '/api/config', { mimolive: { documentId: '999' } });
+  await waitFor(async () => (await mimoState()).state === 'nodoc', 'document not open');
+  await api('POST', '/api/config', { mimolive: { port: 1 } });
+  await waitFor(async () => (await mimoState()).state === 'error', 'not reachable', 8000);
+  assert.match((await mimoState()).message, /Not reachable/);
+  await api('POST', '/api/config', { mimolive: { port: mimoPort, documentId: '1185605207' } });
+  await waitFor(async () => (await mimoState()).state === 'ok', 'mimoLive ok again');
+  // password: required but none saved / saved but wrong / right
+  mimoPassword = 'show-pw';
+  await waitFor(async () => (await mimoState()).state === 'auth', 'password required');
+  assert.match((await mimoState()).message, /requires a password/);
+  await api('POST', '/api/config', { mimolive: { password: 'wrong' } });
+  await waitFor(async () => /password is wrong/.test((await mimoState()).message), 'wrong password');
+  await api('POST', '/api/config', { mimolive: { password: 'show-pw' } });
+  await waitFor(async () => (await mimoState()).state === 'ok', 'right password');
+  mimoPassword = null;
+  await api('POST', '/api/config', { mimolive: { clearPassword: true } });
 
   const st = await api('POST', '/api/start');
   assert.equal(st.status, 200, JSON.stringify(st.json));
@@ -827,6 +864,64 @@ try {
   await waitFor(() => ev('update', 'L-LT', 'Una') >= 0, 'text without layer control');
   await sleep(500);
   assert.ok(!mimoEvents.some((e) => ['live', 'off', 'recall', 'vlive'].includes(e.type)), 'no layer actions when off');
+
+  // ---------- show profiles ----------
+  {
+    assert.equal((await api('GET', '/api/profiles')).json.current, '');
+    await api('POST', '/api/config', { layerControl: { enabled: true, cues: [mk('k1', 'Show A cue', 'questionLive', { type: 'layerLive', layerIds: ['L-LT'] })] } });
+    const saved = await api('POST', '/api/profiles/save', { name: 'Show A – Tromsø' });
+    assert.equal(saved.json.current, 'Show A – Tromsø');
+    assert.equal(saved.json.modified, false);
+    const pfile = path.join(dataDir, 'profiles', 'show-a-tromso.json');
+    assert.ok(fs.existsSync(pfile));
+    assert.equal(fs.statSync(pfile).mode & 0o777, 0o600, 'profile file readable by this user only');
+    assert.equal(JSON.parse(fs.readFileSync(pfile, 'utf8')).show.mukana.refreshToken, 'RT-good', 'login token saved in the profile');
+    assert.equal(saved.json.profiles[0].hasToken, true);
+    await api('POST', '/api/config', { targets: [] });
+    assert.equal((await api('GET', '/api/profiles')).json.modified, true, 'change → unsaved changes');
+    // download: the show only, never the login token or mimoLive password
+    await api('POST', '/api/config', { mimolive: { password: 'pw-secret' } });
+    const dl = await fetch(`http://127.0.0.1:${appPortMoved || appPort}/api/profiles/export?name=${encodeURIComponent('Show A – Tromsø')}`);
+    assert.match(dl.headers.get('content-disposition'), /attachment; filename="show-a-tromso.json"/);
+    const file = await dl.text();
+    assert.ok(!/RT-good|pw-secret|refreshToken|password/.test(file), 'no secrets in a download by default');
+    const withTok = await (await fetch(`http://127.0.0.1:${appPortMoved || appPort}/api/profiles/export?name=${encodeURIComponent('Show A – Tromsø')}&token=1`)).text();
+    assert.match(withTok, /RT-good/, 'token in the download when asked for');
+    assert.ok(!/pw-secret/.test(withTok), 'never the mimoLive password');
+    const doc = JSON.parse(file);
+    assert.equal(doc.show.mukana.eventId, 'ohtest');
+    assert.ok(doc.show.targets.length > 0);
+    // new show: empty, Auto layers off, Mukana disconnected (no event)
+    const reset = await api('POST', '/api/profiles/reset');
+    assert.equal(reset.json.current, '');
+    const blank = (await api('GET', '/api/config')).json;
+    assert.deepEqual([blank.mukana.eventId, blank.mimolive.documentId, blank.targets.length, blank.layerControl.cues.length, blank.layerControl.enabled, blank.panelists.cast.length], ['', '', 0, 0, false, 0]);
+    assert.equal(blank.mukana.hasRefreshToken, true, 'login kept on New show');
+    assert.equal(blank.mimolive.hasPassword, true, 'mimoLive password kept');
+    assert.equal(blank.mimolive.port, mimoPort, 'mimoLive machine kept');
+    assert.equal((await api('GET', '/api/status')).json.running, false);
+    // load: everything back, Auto layers off, Mukana reconnected
+    const loaded = await api('POST', '/api/profiles/load', { name: 'Show A – Tromsø' });
+    assert.equal(loaded.json.current, 'Show A – Tromsø');
+    assert.equal(loaded.json.modified, false);
+    const back = (await api('GET', '/api/config')).json;
+    assert.equal(back.mukana.eventId, 'ohtest');
+    assert.equal(back.layerControl.cues[0].name, 'Show A cue');
+    assert.equal(back.layerControl.enabled, false, 'Auto layers off after load');
+    assert.equal(back.layerControl.panelistCuesAdded, true, 'no automatic cue conversion on restart');
+    assert.ok(back.targets.length > 0);
+    await waitFor(async () => (await api('GET', '/api/status')).json.running, 'Mukana reconnected');
+    // upload under another name, delete, unknown names
+    const up = await api('POST', '/api/profiles/import', { profile: { ...doc, name: 'Show B' } });
+    assert.equal(up.json.imported, 'Show B');
+    assert.equal(up.json.profiles.find((p) => p.name === 'Show B').hasToken, false, 'downloaded without token');
+    assert.deepEqual(up.json.profiles.map((p) => p.name), ['Show A – Tromsø', 'Show B']);
+    assert.equal((await api('POST', '/api/profiles/import', { profile: { hello: 1 } })).status, 400);
+    assert.equal((await api('POST', '/api/profiles/delete', { name: 'Show B' })).json.profiles.length, 1);
+    assert.equal((await api('POST', '/api/profiles/load', { name: 'Nope' })).status, 400);
+    assert.equal((await api('POST', '/api/profiles/save', { name: ' ' })).status, 400);
+    await api('POST', '/api/config', { mimolive: { clearPassword: true } });
+  }
 
   // change listen port at runtime
   const srv = await api('GET', '/api/server');

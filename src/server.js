@@ -12,6 +12,7 @@ import { loadConfig, saveConfig, updateConfig, publicConfig, FIELDS } from './co
 import { SyncEngine } from './sync.js';
 import { MimoLive, discover } from './mimolive.js';
 import * as autostart from './autostart.js';
+import * as profiles from './profiles.js';
 import { migrateRules, addPanelistCues, overlayLayersFrom, EVENTS, ACTIONS, SHOTS } from './cues.js';
 
 const PUBLIC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -59,6 +60,29 @@ const engine = new SyncEngine(
   }
 );
 engine.on('configChanged', () => saveConfig(config)); // e.g. the captured pre-flight list
+engine.startHealthCheck(Number(process.env.MIMO_HEALTH_MS) || 5000);
+
+/** Switch to another show: stop cues, put the show in the config, reconnect Mukana if the event changed. */
+async function applyShowNow(show, name) {
+  const before = JSON.stringify([config.mukana.eventId, config.mukana.refreshToken]);
+  engine.cues.stopAll();
+  profiles.applyShow(config, show, name);
+  saveConfig(config);
+  engine.cues.configure();
+  engine.panelists.reset();
+  // Another event or login: reconnect to Mukana.
+  if (engine.running && JSON.stringify([config.mukana.eventId, config.mukana.refreshToken]) !== before) engine.stop();
+  if (engine.running) {
+    engine.panelists.prime();
+    await engine.push(true);
+  } else if (config.autoStart && config.mukana.eventId && config.mukana.refreshToken) {
+    // Sync was on (autoStart is cleared only by Stop): connect to the show's event.
+    await engine.start().catch((e) => engine.addLog('error', e.message));
+  }
+  engine.addLog('info', name ? `Show profile “${name}” loaded · Auto layers off` : 'New show (reset) · Auto layers off');
+  return profileStatus();
+}
+const profileStatus = () => ({ current: config.profile || '', modified: profiles.modified(config), profiles: profiles.list() });
 
 /** Add the panelist cues to the cue list (the question overlay is worked out from the layer sets). */
 async function addPanelistCuesNow() {
@@ -150,6 +174,7 @@ const routes = {
     saveConfig(config);
     for (const c of config.layerControl.cues || []) c.id ||= crypto.randomUUID();
     engine.cues.configure();
+    if (patch.mimolive) engine.checkMimoLive?.();
     if (engine.running && JSON.stringify(config.mukana) !== before) {
       engine.stop();
       await engine.start();
@@ -165,6 +190,39 @@ const routes = {
     saveConfig(config);
     return engine.status();
   },
+  // ---- show profiles
+  'GET /api/profiles': () => profileStatus(),
+  'POST /api/profiles/save': async (req) => {
+    const { name } = await readBody(req);
+    const doc = profiles.save(config, name || config.profile);
+    config.profile = doc.name;
+    saveConfig(config);
+    engine.addLog('info', `Show profile “${doc.name}” saved`);
+    return profileStatus();
+  },
+  'POST /api/profiles/load': async (req) => {
+    const doc = profiles.load((await readBody(req)).name);
+    return applyShowNow(doc.show, doc.name);
+  },
+  'POST /api/profiles/reset': async () => applyShowNow(profiles.blankShow(config), ''),
+  'POST /api/profiles/delete': async (req) => {
+    const { name } = await readBody(req);
+    profiles.remove(name);
+    if (profiles.slug(config.profile) === profiles.slug(name)) config.profile = '';
+    saveConfig(config);
+    return profileStatus();
+  },
+  'GET /api/profiles/export': (req, url) => {
+    const doc = profiles.exportProfile(url.searchParams.get('name'), { withToken: url.searchParams.get('token') === '1' });
+    return { __download: { filename: `${profiles.slug(doc.name)}.json`, body: JSON.stringify(doc, null, 2) } };
+  },
+  'POST /api/profiles/import': async (req) => {
+    const doc = profiles.parseUpload((await readBody(req)).profile);
+    profiles.saveDoc(doc);
+    engine.addLog('info', `Show profile “${doc.name}” uploaded`);
+    return { ...profileStatus(), imported: doc.name };
+  },
+
   // ---- cue list, Companion and simulation
   'GET /api/cues/meta': () => ({ events: EVENTS, actions: ACTIONS, shots: SHOTS }),
   'GET /api/cues': () => {
@@ -320,7 +378,12 @@ async function handleRequest(req, res) {
   }
   if (handler) {
     try {
-      return send(res, 200, await handler(req, url));
+      const out = await handler(req, url);
+      if (out?.__download) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': `attachment; filename="${out.__download.filename}"`, 'Cache-Control': 'no-store' });
+        return res.end(out.__download.body);
+      }
+      return send(res, 200, out);
     } catch (e) {
       return send(res, 400, { error: e.message });
     }

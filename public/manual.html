@@ -51,6 +51,7 @@
   <a href="#install">Install</a>
   <a href="#run">Run</a>
   <a href="#mimolive">Configure mimoLive</a>
+  <a href="#profiles">Show profiles</a>
   <a href="#setup">First-time setup</a>
   <a href="#token">Getting the Mukana token</a>
   <a href="#mapping">Mapping</a>
@@ -142,6 +143,18 @@ npm start</code></pre>
 </ul>
 <div class="note warn">Some mimoLive versions have a reported bug where a one-character password appears on its own after a restart. If <b>Scan network</b> shows <b>🔒 password required</b> or the log says <i>mimoLive requires a password</i>, open the Remote Control tab and either clear the password or enter it here.</div>
 <p>Do not expose port 8989 to the internet. mimoLive recommends a tunnel (such as ngrok) if you ever need remote access from outside the LAN.</p>
+
+<h2 id="profiles">Show profiles</h2>
+<p>The <b>Show profile</b> bar at the top switches between shows. A profile holds the <b>Event ID and Mukana login token</b> (🔑), the mimoLive machine and <b>document</b>, the <b>mapping</b>, the <b>cue list</b> and the <b>panelists</b> (people, layouts, lower third, pre-flight list). The mimoLive password and the Service settings stay on this machine.</p>
+<table>
+  <tr><th>Button</th><th>Does</th></tr>
+  <tr><td><b>Load</b></td><td>Switches to the selected show (click twice). The profile's token is used, so you don't need a new one. A profile without a token keeps the current login. Mukana reconnects if the event or login changed.</td></tr>
+  <tr><td><b>Save</b> / <b>Save as…</b></td><td>Saves the current show over its profile, or under a new name. The bar shows <i>saved</i> or <i>unsaved changes</i>.</td></tr>
+  <tr><td><b>New show</b></td><td>Empties Event ID, document, mapping, cue list and panelists (click twice). The login token and the mimoLive machine are kept.</td></tr>
+  <tr><td><b>Download</b> / <b>Upload</b></td><td>A profile as a file, e.g. to move a show to another machine. The download leaves out the login token unless you tick <b>incl. login token</b>. Only tick it for your own machines: anyone with the file can sign in to Mukana as you.</td></tr>
+  <tr><td><b>Delete</b></td><td>Removes the selected profile from this machine (click twice).</td></tr>
+</table>
+<div class="note">After <b>Load</b> and <b>New show</b>, <b>Auto layers</b> is off, so a show never fires cues before you are ready. Turn it on in the Live section.</div>
 
 <h2 id="setup">First-time setup</h2>
 <ol>
@@ -245,6 +258,7 @@ npm start</code></pre>
 <h2 id="live">During the show</h2>
 <table>
   <tr><th>Control</th><th>Use</th></tr>
+  <tr><td>Status lights</td><td><b>Server</b>: green = the page reaches the service, red = the service is stopped or the network is gone. <b>Mukana</b>: green = all streams live, yellow = connecting or simulating, red = error (e.g. token or event), grey = sync stopped. <b>mimoLive</b>: green = reachable and the show document is open, yellow = reachable but the document is not open, red = not reachable, or mimoLive needs a password that is missing or wrong (the hover text says which; enter it in 2 · mimoLive), grey = no mimoLive set. Hover a light for the reason. mimoLive is checked every 5 seconds, also when sync is stopped.</td></tr>
   <tr><td>Status pill</td><td><b>LIVE · waiting</b>: connected, no question on air. <b>LIVE · question on air</b>: data is being sent. <b>Connecting…</b>: reconnecting (normal after network blips and every hour). <b>Error</b>: see the log.</td></tr>
   <tr><td>Live table</td><td>The current value of every field, as it is sent to mimoLive.</td></tr>
   <tr><td><b>Auto layers</b></td><td>Turns Mukana-triggered <a href="#layers" style="color:var(--accent)">cues</a> and <a href="#panelists" style="color:var(--accent)">panelists</a> on and off, and stops running cues when turned off. Green = on. GO buttons still work.</td></tr>

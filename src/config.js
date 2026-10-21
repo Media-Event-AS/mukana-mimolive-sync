@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
+export const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const FILE = path.join(DATA_DIR, 'config.json');
 
 const TXT = 'tvGroup_Content__Text_TypeMultiline';
@@ -58,13 +58,12 @@ export const DEFAULTS = {
   server: { host: '0.0.0.0', port: 8790 },
   // [{ field, kind: 'layer'|'source', id, key }]
   targets: [],
-  // Automatic layer control. rules: [{ id, trigger: 'question'|'panelist', action: 'layer'|'layerSet',
-  //   layerId | onSetId + offSetId (optional), offAfterSec (0 = stay until cleared), label }]
+  // Cue list (see cues.js). enabled = "Auto layers": Mukana events may fire cues.
   layerControl: { enabled: false, cues: [] },
-  // Panelist automation (also needs layerControl.enabled).
+  // Panelists: people, layouts and lower third used by the panelist cue actions (see panelists.js).
   //   cast: [{ uid, name, role: 'panelist'|'host'|'reader', sourceId, sourceName, screenName, title, ltVariantId, ltVariantName }]
   //   ltMode: 'text' (write screenName/title into ltNameKey/ltTitleKey) | 'variant' (take ltVariantId live)
-  //   layouts: [{ count, setId, setName, layerId, layerName, slots: ['B', 'C'] }]
+  //   layouts: [{ count, shot: 'host'|'solo'|'hostOnly', setId, setName, layerId, layerName, slots: ['B', 'C'] }]
   //   roster: { eventId, people: [{ uid, name, loc }] } – hands captured on the pre-flight question
   //   rosterMatch: text that identifies the pre-flight question
   panelists: {
@@ -72,6 +71,7 @@ export const DEFAULTS = {
     ltDelaySec: 3, ltOffAfterSec: 8, rosterMatch: 'Pre-flight checklist',
   },
   autoStart: false,
+  profile: '', // name of the show profile last loaded or saved (see profiles.js)
 };
 
 function merge(base, over) {

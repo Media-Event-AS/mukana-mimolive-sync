@@ -88,6 +88,8 @@ npm start
 
 Open `http://localhost:8790` on the same machine, or `http://<machine-ip>:8790` from another machine on the LAN. Stop with **Ctrl+C**.
 
+Three **status lights** in the header show the connections: **Server** (the page reaches the service), **Mukana** (green = all streams live, yellow = connecting or simulating, red = error, grey = sync stopped) and **mimoLive** (green = reachable with the show document open, yellow = document not open, red = not reachable, or a mimoLive password is missing or wrong; checked every 5 s, also when sync is stopped). Hover a light for the reason.
+
 | Env variable | Default | Purpose |
 |---|---|---|
 | `PORT` | `8790` | Web UI port. Overrides (and locks) the setting in the web UI. |
@@ -146,6 +148,26 @@ Sources: [mimoLive Remote Control](https://mimolive.com/user-manual/remote-contr
 4. **Layer control** (optional) – a cue list that takes layers and layer sets live and off on Mukana events, timers or Companion buttons. See [Layer control](#layer-control-cue-list).
 5. **Panelists** (optional) – sources, layouts and lower thirds for panelists. See [Panelists](#panelists).
 6. **Start sync**. Check the *Live* panel, and use **Verify against mimoLive** to read the values back from mimoLive.
+
+## Show profiles
+
+The **Show profile** bar at the top of the web UI switches between shows.
+
+| In a profile | Stays on this machine |
+|---|---|
+| Mukana **Event ID** and **login token** (🔑) | mimoLive password |
+| mimoLive host, port and **document** | Firebase advanced settings |
+| Mapping, **cue list**, **Panelists** (people, layouts, lower third, pre-flight list) | Web UI address and port, start at login |
+
+| Button | Does |
+|---|---|
+| **Load** | Switches to the selected show (two clicks). The token in the profile is used, so there is no need to make a new one; a profile without a token keeps the current login. Mukana reconnects if the event or login changed. |
+| **Save** / **Save as…** | Saves the current show over its profile, or under a new name. The bar shows *saved* / *unsaved changes*. |
+| **New show** | Empties Event ID, document, mapping, cue list and panelists (two clicks). The login token and the mimoLive machine are kept. |
+| **Download** / **Upload** | A profile as a `.json` file, e.g. to move a show to another machine. The download leaves the login token out unless **incl. login token** is ticked; only tick it for your own machines, since anyone with the file can sign in to Mukana as you. |
+| **Delete** | Removes the selected profile from this machine (two clicks). |
+
+After **Load** and **New show**, **Auto layers** is off, so a show never fires cues by itself before you are ready. Profiles are stored in `data/profiles/` (not in git), readable by your user only.
 
 ## Layer control (cue list)
 

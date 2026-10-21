@@ -18,6 +18,14 @@
   .pill.live { background: rgba(46,204,113,.15); color: var(--ok); }
   .pill.err { background: rgba(255,92,92,.15); color: var(--err); }
   .pill.wait { background: rgba(241,196,15,.15); color: var(--warn); }
+  .lights { display: flex; gap: 12px; font-size: 12px; color: var(--muted); }
+  .light { display: inline-flex; align-items: center; gap: 5px; cursor: default; }
+  .light i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: inline-block; }
+  .light.ok i { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+  .light.wait i { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+  .light.err i { background: var(--err); box-shadow: 0 0 6px var(--err); }
+  .light.off i { background: #4a5162; }
+  @media (max-width: 1000px) { #user { display: none; } }
   .spacer { flex: 1; }
   main { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; padding: 16px 20px 40px; max-width: 1400px; margin: 0 auto; }
   @media (max-width: 480px) { main { grid-template-columns: 1fr; padding: 12px 16px; } }
@@ -88,6 +96,11 @@
 <header>
   <h1>Mukana → mimoLive Sync</h1>
   <span id="pill" class="pill">Stopped</span>
+  <span class="lights">
+    <span class="light" id="ltServer" title="Checking…"><i></i>Server</span>
+    <span class="light" id="ltMukana" title="Checking…"><i></i>Mukana</span>
+    <span class="light" id="ltMimo" title="Checking…"><i></i>mimoLive</span>
+  </span>
   <span id="user" class="hint" style="margin:0"></span>
   <span class="spacer"></span>
   <a href="/manual.html" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:none;font-size:13px;margin-right:4px">Manual ↗</a>
@@ -96,6 +109,27 @@
 </header>
 
 <main>
+  <section class="wide" id="showSection">
+    <h2>Show profile</h2>
+    <div class="row" style="flex-wrap:wrap;align-items:center;gap:10px">
+      <div style="flex:1 1 260px">Current show: <b id="profName">—</b> <span id="profState" class="pill" style="margin-left:6px"></span></div>
+      <div style="flex:1 1 260px"><select id="profList"></select></div>
+      <div class="btns" style="margin:0;flex:0 0 auto">
+        <button id="btnProfLoad">Load</button>
+        <button id="btnProfSave" class="primary">Save</button>
+        <button id="btnProfSaveAs">Save as…</button>
+        <button id="btnProfDownload" title="Download the selected profile as a file, e.g. to move the show to another machine">Download</button>
+        <label style="display:inline-flex;align-items:center;gap:4px;margin:0;font-size:12px" title="Put the Mukana login token in the downloaded file. Only for your own machines: anyone with the file can sign in as you in Mukana."><input type="checkbox" id="profWithToken" style="width:auto"> incl. login token</label>
+        <button id="btnProfUpload" title="Add a profile file downloaded on another machine">Upload</button>
+        <button id="btnProfDelete" class="danger">Delete</button>
+        <button id="btnProfReset" class="danger" title="Start a new, empty show">New show</button>
+      </div>
+    </div>
+    <div class="row" id="profSaveAsRow" style="display:none;max-width:520px;margin-top:8px"><input id="profNewName" placeholder="Show name, e.g. Rabalder 2026 – day 1"><button id="btnProfSaveAsOk" class="primary" style="flex:0 0 auto">Save</button></div>
+    <input type="file" id="profFile" accept=".json,application/json" style="display:none">
+    <div class="hint">A profile holds the show: Event ID and Mukana login token (🔑), mimoLive machine and document, mapping, cue list and panelists. The mimoLive password and the Service settings stay on this machine. A profile without a token keeps the current login. Downloads leave the token out unless you tick <i>incl. login token</i>. After <b>Load</b> or <b>New show</b>, <b>Auto layers</b> is off: turn it on when you are ready.</div>
+  </section>
+
   <section>
     <h2>1 · Mukana</h2>
     <label for="eventId">Event ID</label>
@@ -749,14 +783,100 @@ function renderStatus(s) {
   log.innerHTML = s.log.map(l => `<div class="${l.level}"><time>${new Date(l.ts).toLocaleTimeString()}</time>${esc(l.msg)}</div>`).join('');
   if (atBottom) log.scrollTop = log.scrollHeight;
 }
+function setLight(id, cls, title) {
+  const el = $(id);
+  el.className = 'light ' + cls;
+  el.title = title;
+}
+function renderLights(s) {
+  if (!s) {
+    setLight('ltServer', 'err', 'The service is not reachable: it is stopped, or this machine lost the network');
+    setLight('ltMukana', 'off', 'Unknown while the service is not reachable');
+    setLight('ltMimo', 'off', 'Unknown while the service is not reachable');
+    return;
+  }
+  setLight('ltServer', 'ok', 'The service is running and answering');
+  const streams = Object.values(s.streams || {});
+  if (s.simulating) setLight('ltMukana', 'wait', 'Simulating: Mukana is ignored until you end the simulation');
+  else if (s.mukanaError || streams.some(x => x === 'error')) setLight('ltMukana', 'err', s.mukanaError || 'A Mukana stream has an error, see the log');
+  else if (!s.running) setLight('ltMukana', 'off', 'Sync is stopped');
+  else if (streams.length && streams.every(x => x === 'live')) setLight('ltMukana', 'ok', 'Connected to Mukana, all streams live');
+  else setLight('ltMukana', 'wait', 'Connecting to Mukana…');
+  const m = s.mimolive || { state: 'unset', message: '' };
+  setLight('ltMimo', { ok: 'ok', nodoc: 'wait', auth: 'err', error: 'err', unset: 'off' }[m.state] || 'off', m.message || '');
+}
 async function poll() {
-  try { renderStatus(await api('GET', '/api/status')); } catch {}
+  try { const s = await api('GET', '/api/status'); renderStatus(s); renderLights(s); } catch { renderLights(null); }
   setTimeout(poll, 1000);
 }
 
 async function saveCfg(patch, msg) {
-  try { cfg = await api('POST', '/api/config', patch); toast(msg || 'Saved'); fillConfig(); } catch (e) { toast(e.message, true); }
+  try { cfg = await api('POST', '/api/config', patch); toast(msg || 'Saved'); fillConfig(); refreshProfiles(); } catch (e) { toast(e.message, true); }
 }
+
+// ---- Show profiles
+async function refreshProfiles() {
+  let st; try { st = await api('GET', '/api/profiles'); } catch { return; }
+  $('profName').textContent = st.current || '(not saved as a profile yet)';
+  const state = $('profState');
+  if (!st.current) $('profName').dataset.unsaved = '1'; else delete $('profName').dataset.unsaved;
+  if (!st.current) { state.textContent = 'not saved'; state.className = 'pill wait'; }
+  else if (st.modified) { state.textContent = 'unsaved changes'; state.className = 'pill wait'; }
+  else { state.textContent = 'saved'; state.className = 'pill live'; }
+  const keep = $('profList').value || st.current;
+  $('profList').innerHTML = st.profiles.length
+    ? st.profiles.map(p => `<option value="${esc(p.name)}" ${p.name === keep ? 'selected' : ''}>${esc(p.name)}${p.eventId ? ' · ' + esc(p.eventId) : ''}${p.hasToken ? ' · 🔑' : ''} · ${p.cues} cues · ${p.people} people${p.savedAt ? ' · ' + new Date(p.savedAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }) : ''}</option>`).join('')
+    : '<option value="">No saved profiles yet</option>';
+  $('btnProfSave').title = st.current ? `Save over “${st.current}”` : 'Save this show under a name';
+}
+const selectedProfile = () => $('profList').value;
+$('btnProfLoad').onclick = async (e) => {
+  const name = selectedProfile();
+  if (!name) return toast('No profile selected', true);
+  if (!confirmClick(e.currentTarget, `Load “${name}”? Unsaved changes to the current show are lost.`)) return;
+  try { await api('POST', '/api/profiles/load', { name }); toast(`“${name}” loaded · Auto layers is off`); setTimeout(() => location.reload(), 400); } catch (err) { toast(err.message, true); }
+};
+const showSaveAs = () => { $('profSaveAsRow').style.display = ''; $('profNewName').value = ''; $('profNewName').focus(); };
+$('btnProfSave').onclick = async () => {
+  const current = $('profName').textContent;
+  if ($('profName').dataset.unsaved) return showSaveAs();
+  try { await api('POST', '/api/profiles/save', { name: current }); toast(`“${current}” saved`); refreshProfiles(); } catch (err) { toast(err.message, true); }
+};
+$('btnProfSaveAs').onclick = showSaveAs;
+$('btnProfSaveAsOk').onclick = async () => {
+  const name = $('profNewName').value.trim();
+  if (!name) return toast('Give the show a name', true);
+  try { await api('POST', '/api/profiles/save', { name }); $('profSaveAsRow').style.display = 'none'; $('profList').value = ''; toast(`Saved as “${name}”`); await refreshProfiles(); $('profList').value = name; } catch (err) { toast(err.message, true); }
+};
+$('profNewName').onkeydown = (e) => { if (e.key === 'Enter') $('btnProfSaveAsOk').click(); };
+$('btnProfDownload').onclick = () => {
+  const name = selectedProfile();
+  if (!name) return toast('No profile selected', true);
+  location.href = `/api/profiles/export?name=${encodeURIComponent(name)}${$('profWithToken').checked ? '&token=1' : ''}`;
+};
+$('btnProfUpload').onclick = () => $('profFile').click();
+$('profFile').onchange = async () => {
+  const f = $('profFile').files[0];
+  $('profFile').value = '';
+  if (!f) return;
+  try {
+    const st = await api('POST', '/api/profiles/import', { profile: JSON.parse(await f.text()) });
+    await refreshProfiles();
+    $('profList').value = st.imported;
+    toast(`“${st.imported}” added. Click Load to use it.`);
+  } catch (err) { toast('Upload failed: ' + err.message, true); }
+};
+$('btnProfDelete').onclick = async (e) => {
+  const name = selectedProfile();
+  if (!name) return toast('No profile selected', true);
+  if (!confirmClick(e.currentTarget, `Deletes the saved profile “${name}” from this machine.`)) return;
+  try { await api('POST', '/api/profiles/delete', { name }); toast(`“${name}” deleted`); $('profList').value = ''; refreshProfiles(); } catch (err) { toast(err.message, true); }
+};
+$('btnProfReset').onclick = async (e) => {
+  if (!confirmClick(e.currentTarget, 'Empties Event ID, document, mapping, cue list and panelists. Save first if you want to keep this show.')) return;
+  try { await api('POST', '/api/profiles/reset'); toast('New show · Auto layers is off'); setTimeout(() => location.reload(), 400); } catch (err) { toast(err.message, true); }
+};
+setInterval(refreshProfiles, 5000);
 
 $('btnSaveMukana').onclick = () => saveCfg({ mukana: {
   eventId: $('eventId').value.trim(), refreshToken: $('refreshToken').value.trim(),
@@ -914,6 +1034,7 @@ function confirmClick(btn, msg) {
   FIELDS = await api('GET', '/api/fields');
   cfg = await api('GET', '/api/config');
   fillConfig();
+  refreshProfiles();
   if (cfg.mimolive.host) loadDocs(cfg.mimolive.documentId).catch(() => {
     $('mlDoc').innerHTML = cfg.mimolive.documentId ? `<option value="${esc(cfg.mimolive.documentId)}">${esc(cfg.mimolive.documentId)} (not connected)</option>` : '<option value="">— load documents first —</option>';
   });
